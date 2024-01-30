@@ -1,6 +1,6 @@
 # graphite-ext-plugin-loader
 
-The `ext_loader.lua` script aims to load external programs or scripts as Graphite plugins. 
+The `ext_loader.lua` script aims to load external programs or scripts as [Graphite](https://github.com/BrunoLevy/GraphiteThree) plugins. 
 
 ## Enable Graphite loading external programs
 
@@ -45,7 +45,7 @@ Note: All external plugins are listed in the file `ext_plugin_list.txt` in the G
 
 ## How Graphite recognize external plugins ?
 
-To enable Graphite to load plugins and generate the appropriate user interface (UI), it is necessary to present program parameters in a specific format that can be read and understood by Graphite. Let's call this format EPF (External Plugin Format / Expose Parameter Format). 
+To enable Graphite loading plugins and generate the appropriate user interface (UI), it is necessary to present program parameters in a specific format that can be read and understood by Graphite. Let's call this format __EPF format__ for External Plugin Format / Expose Parameter Format. 
 
 This format is obtained by Graphite when executing `ext_loader.lua` in two different ways: 
  
@@ -54,7 +54,7 @@ This format is obtained by Graphite when executing `ext_loader.lua` in two diffe
 
 ## EPF format
 
- EPF format is very simple and looks like this:
+__EPF format__ is very simple and looks like this:
 
 ```
  #This file contains reflexion information for calling a binary file
@@ -71,7 +71,6 @@ Each line contains data about one parameter:
  - __type_of_param__: ...
  - __visible__ (optional): indicate whether the parameter is visible in the UI
  - __target_format__ (optional): indicate how to format of parameter argument when calling program
- 
 
 Line that start with `#` are comments.
 
@@ -81,13 +80,13 @@ Line that start with `#` are comments.
 There is two way to turn a program into an external plugin recognizable by `ext_loader`:
 
  - Executable must respond to the `--show-params` argument, returning program parameters as __EPF format__
- - Or, deliver a `.gplugin.txt` file that contains program parameter as __EPF format__
+ - Or, deliver a `.gplugin.txt` file that contains program parameters as __EPF format__
  
-### Embedded in the program
+### Show param argument
 
-For the programs written in C++, we encourage to use https://github.com/ultimaille/param-parser.
+For the programs written in C++, we encourage you to use https://github.com/ultimaille/param-parser. This micro library help you to declare parameters and return __EPF format__ when `--show-params` is requested.
 
-### Using gplugin file
+### Gplugin file
 
 If you already have a program that accept some parameters in a given format, it's possible to indicate how the program should be called using the `target_format` field. For example, we have a program that should be called like this:
 
