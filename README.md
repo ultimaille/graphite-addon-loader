@@ -73,8 +73,9 @@ Line that start with `#` are comments.
 
 ## Make a program recognizable by Graphite
 
-To turn a program into an external plugin recognizable by `ext_loader`, your program must respond to the `--show-params` argument, returning program parameters as __EPF format__.
- 
-### Show param argument
+To turn a program into an external plugin recognizable by `ext_loader`, your program must: 
 
-For the programs written in C++, we encourage you to use https://github.com/ultimaille/param-parser. This micro library help you to declare parameters and return __EPF format__ when `--show-params` is requested.
+ - Respond to the `--show-params` argument, returning program parameters as __EPF format__
+ - Accept to be called with arguments as the following format: `k1=v2 k2=v2 ... kn=vn` with `ki` the parameter name and `vi` the value of the parameter (e.g: `my_program param_string=hello param_bool=true param_int=1 ...`)
+ 
+Note: for the programs written in __C++__, we encourage you to use https://github.com/ultimaille/param-parser. This micro library help you to declare parameters and return __EPF format__ when `--show-params` is requested.
