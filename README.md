@@ -27,7 +27,6 @@ You can add an external plugin via the menu `Externals -> Manage plugins -> Add`
  - Name: an arbitrary name for the plugin
  - Program: program to execute
  - Interpreter (OPTIONAL): path or name of interpreter used to execute program (e.g: a python script need `python3` interpreter)
- - gplugin (OPTIONAL): `gplugin` file that contains parameters info of the program
 
 ### Modify
 
@@ -47,10 +46,7 @@ Note: All external plugins are listed in the file `ext_plugin_list.txt` in the G
 
 To enable Graphite loading plugins and generate the appropriate user interface (UI), it is necessary to present program parameters in a specific format that can be read and understood by Graphite. Let's call this format __EPF format__ for External Plugin Format / Expose Parameter Format. 
 
-This format is obtained by Graphite when executing `ext_loader.lua` in two different ways: 
- 
- - Calling an executable with `--show-params` argument, returning program parameters as __EPF format__
- - Reading a `.gplugin.txt` file at __EPF format__
+This format is obtained by Graphite when executing `ext_loader.lua` by calling a program with `--show-params` argument, returning program parameters as __EPF format__.
 
 ## EPF format
 
@@ -77,30 +73,8 @@ Line that start with `#` are comments.
 
 ## Make a program recognizable by Graphite
 
-There is two way to turn a program into an external plugin recognizable by `ext_loader`:
-
- - Executable must respond to the `--show-params` argument, returning program parameters as __EPF format__
- - Or, deliver a `.gplugin.txt` file that contains program parameters as __EPF format__
+To turn a program into an external plugin recognizable by `ext_loader`, your program must respond to the `--show-params` argument, returning program parameters as __EPF format__.
  
 ### Show param argument
 
 For the programs written in C++, we encourage you to use https://github.com/ultimaille/param-parser. This micro library help you to declare parameters and return __EPF format__ when `--show-params` is requested.
-
-### Gplugin file
-
-If you already have a program that accept some parameters in a given format, it's possible to indicate how the program should be called using the `target_format` field. For example, we have a program that should be called like this:
-
-`script.py my_model.obj -dist area -init-mode auto -feat`
-
-We can define the following `.gplugin.txt` file that contains info about script parameters and how to format arguments:
-
-```
-name=input;type=file;description=Input model;visible=false;target_format=$input_model
-name=dist;type=string;value=area;description=Distorsion;visible=true;target_format=-dist $val
-name=init-mode;type=string;value=auto;possible_values=auto,zero,smooth,curv,random;description=Framefield init mode;visible=true;target_format=-init-mode $val
-name=feat;type=bool;value=true;description=Detect features;visible=true;target_format=-feat
-```
-
-Predefined variables:
- - __$val__: argument value
- - __$input_model__: current model in Graphite

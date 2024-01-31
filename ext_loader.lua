@@ -112,14 +112,8 @@ function map_param(param, val)
    end
 
    -- should apply a target format ?
-   if param.name == 'input' and scene_graph.current() ~= nil then
-      return scene_graph.current().filename
-   elseif param.target_format ~= nil then       
-      if param.type ~= 'bool' or val == true then 
-         return param.target_format:gsub('$val', tostring(val))
-      else 
-         return " "
-      end
+   if param.type == 'input' and scene_graph.current() ~= nil then
+      return param.name.."="..scene_graph.current().filename
    else
       return param.name.."="..tostring(val)
    end
@@ -298,91 +292,6 @@ local project_root = gom.get_environment_value("PROJECT_ROOT")
 local bin_path = project_root.."/plugins/external/binaries/"
 local scripts_path = project_root.."/plugins/external/scripts/"
 
--- --------------------------------
--- -- Search for binary plugins ---
--- --------------------------------
-
--- -- list binaries
--- print('list binaries...')
-
--- local entries = FileSystem.get_directory_entries(bin_path)
-
--- for _, e in pairs(entries) do 
-
---    -- Get filename only & clean up
---    local program_name = FileSystem.base_name(e, false)
---    local clean_program_name = string.clean(program_name)
-
---    -- Call bin to get parameters
---    local call_cmd = bin_path .. program_name
---    local str_params = os.capture(call_cmd .. " --show-params", true)
---    -- Split lines and map string parameters to object parameters
---    lines = string.split(str_params, "\r\n")
---    local parameters = parameters_from_lines(lines)
-   
---    -- Create a new plugin object
---    local plug_ext = {
---       name = clean_program_name,
---       call_cmd = call_cmd,
---       parameters = parameters
---    }
-
---    -- Keep plugin object in a associative map
---    ext_plugins[plug_ext.name] = plug_ext
--- end
-
--- --------------------------------
--- -- Search for script plugins ---
--- --------------------------------
-
--- -- list scripts
--- print('list scripts...')
-
--- -- Make a recursive search for .gpplugin.txt files in directories
--- local entries = search(scripts_path, ".*.gplugin.txt")
-
--- for _, e in pairs(entries) do 
-
---    if FileSystem.is_file(e) then
---       print('open: ' .. e)
-
---       local bin = ""
---       local script_rel_path = ""
---       local str_params = ""
-   
---       -- Get info
---       for line in io.lines(e) do 
---          if string.sub(line, 0, 5) == '#bin=' then 
---             bin = string.sub(line, 6, #line)
---          elseif string.sub(line, 0, 6) == '#path=' then 
---             script_rel_path = string.sub(line, 7, #line)
---          -- skip comments
---          elseif string.sub(line, 0, 1) ~= '#' then 
---             str_params = str_params..line.."\r\n"
---          end
-   
---       end
-
---       lines = string.split(str_params, "\r\n")
---       local parameters = parameters_from_lines(lines)
-   
---       --
---       local plugin_dir = FileSystem.dir_name(e)
---       local script_path = plugin_dir .. "/" .. script_rel_path
---       print(script_path)
-      
---       -- Create a new plugin object
---       local plug_ext = {
---          name = string.clean(script_rel_path),
---          call_cmd = bin .. " " .. script_path,
---          parameters = parameters
---       }
-
---       -- -- Keep plugin object in a associative map
---       ext_plugins[plug_ext.name] = plug_ext
---    end
--- end
-
 --------------------------------
 -- Draw menus                ---
 --------------------------------
@@ -412,7 +321,7 @@ function load_ext_plugins_from_file()
 
       for _, x in pairs(plug_config) do 
 
-         load_ext_plugin(x.name, x.program, x.interpreter, x.gplugin_file)
+         load_ext_plugin(x.name, x.program, x.interpreter)
 
          -- Print
          print('External plugin ' .. x.name .. ' was loaded.')
@@ -423,9 +332,6 @@ function load_ext_plugins_from_file()
          if not string.empty(x.mode) then 
             print(' - Mode: ' .. x.mode)
          end 
-         if not string.empty(x.gplugin_file) then 
-            print(" - Parameters extracted from: " .. x.gplugin_file)
-         end
 
          table.insert(plug_list, x)
       end
@@ -441,20 +347,7 @@ function list_ext_plugins()
    end
 end
 
-function load_ext_plugin(name, program, interpreter, gplugin_file)
-   -- Load plugin
-   if string.empty(gplugin_file) then
-      print('from call')
-      load_ext_plugin_from_call(name, program, interpreter) 
-   else
-      print('from gplugin file')
-      load_ext_plugin_from_file(name, program, interpreter, gplugin_file)
-   end
-end
-
-function load_ext_plugin_from_call(name, program, interpreter)
-   -- /home/tex/Programs/GraphiteThree/plugins/external/binaries/parameter-example
-
+function load_ext_plugin(name, program, interpreter)
    -- Clean up name, if needed
    local clean_program_name = string.clean(name)
 
@@ -485,52 +378,15 @@ function load_ext_plugin_from_call(name, program, interpreter)
    draw_menu(mclass, plug_ext)
 end
 
-function load_ext_plugin_from_file(name, program, interpreter, gplugin_file)
-   
-   -- Clean up name, if needed
-   local clean_program_name = string.clean(name)
-   
-   local f = assert(io.open(gplugin_file, "r"))
-   local str_params = f:read("*all")
-   f:close()
-
-   lines = string.split(str_params, "\r\n")
-   
-   local parameters = parameters_from_lines(lines)
-   
-   local call_cmd = ""
-   if interpreter then 
-      call_cmd = call_cmd .. interpreter .. " "
-   end
-   call_cmd = call_cmd .. program
-
-   -- Create a new plugin object
-   local plug_ext = {
-      name = clean_program_name,
-      call_cmd = call_cmd,
-      program = program,
-      interpreter = interpreter,
-      parameters = parameters,
-      gplugin_file = gplugin_file
-   }
-
-   -- -- Keep plugin object in a associative map
-   ext_plugins[plug_ext.name] = plug_ext
-   -- Draw menu
-   draw_menu(mclass, plug_ext)
-end
-
-function add_ext_plugin(name, program, interpreter, gplugin_file)
+function add_ext_plugin(name, program, interpreter)
 
    -- if ext_plugins[name] ~= nil then
    --    print("Plugin " .. name .. " already exist in external plugin list, please choose another name.")
    if program == nil or program == "" then 
       print("Program shouldn't be empty.")
-   elseif not string.empty(gplugin_file) and not FileSystem.is_file(gplugin_file) then 
-      print("gplugin file doesn't exist.")
    else
       -- Load plugin
-      load_ext_plugin(name, program, interpreter, gplugin_file)
+      load_ext_plugin(name, program, interpreter)
       -- Overwrite file
       overwrite_ext_plugin_list_file()
 
@@ -546,9 +402,6 @@ function overwrite_ext_plugin_list_file()
       local line = "name="..plug_ext.name..";program="..plug_ext.program..";mode="..tostring(false)
       if not string.empty(plug_ext.interpreter) then 
          line = line .. ";interpreter=" .. plug_ext.interpreter
-      end
-      if not string.empty(plug_ext.gplugin_file) then 
-         line = line .. ";gplugin_file=" .. plug_ext.gplugin_file
       end
 
       f:write(line.."\n")
@@ -569,7 +422,7 @@ end
 
 function modify_plugin(args)
    -- TODO checkings
-   add_ext_plugin(args.name, args.program, args.interpreter, args.gplugin)
+   add_ext_plugin(args.name, args.program, args.interpreter)
 end
 
 -- Make our new commands visible from MeshGrob
@@ -583,7 +436,7 @@ local plug_list = load_ext_plugins_from_file()
 -- Add plugin menu
 m_add_plugin = mclass_scene_graph_command.add_slot("Add", function(args) 
 
-   add_ext_plugin(args.name, args.program, args.interpreter, args.gplugin) 
+   add_ext_plugin(args.name, args.program, args.interpreter) 
    
    m_list_plugin_2_config = mclass_scene_graph_command.add_slot(args.name, modify_plugin)
 
@@ -593,8 +446,6 @@ m_add_plugin = mclass_scene_graph_command.add_slot("Add", function(args)
    m_list_plugin_2_config.add_arg("interpreter", gom.meta_types.OGF.FileName, args.interpreter)
    m_list_plugin_2_config.create_arg_custom_attribute('interpreter', 'help', 'Interpreter used to execute the program (optional, e.g: python3)')
    
-   m_list_plugin_2_config.add_arg("gplugin", gom.meta_types.OGF.FileName, args.gplugin_file)
-   m_list_plugin_2_config.create_arg_custom_attribute('gplugin','help', 'Optional, only if you expose parameters of the plugin via a .gplugin.txt file')
    m_list_plugin_2_config.create_custom_attribute('menu','/Externals/Manage plugins/Modify')
 
 end)
@@ -607,9 +458,6 @@ m_add_plugin.create_arg_custom_attribute('program', 'help', 'Program to call (e.
 
 m_add_plugin.add_arg("interpreter", gom.meta_types.OGF.FileName, "")
 m_add_plugin.create_arg_custom_attribute('interpreter', 'help', 'Interpreter used to execute the program (optional, e.g: python3)')
-
-m_add_plugin.add_arg("gplugin", gom.meta_types.OGF.FileName, nil)
-m_add_plugin.create_arg_custom_attribute('gplugin','help', 'Optional, only if you expose parameters of the plugin via a .gplugin.txt file')
 
 m_add_plugin.create_custom_attribute('menu','/Externals/Manage plugins')
 
@@ -626,8 +474,6 @@ for _, x in pairs(plug_list) do
    m_list_plugin_2_config.add_arg("interpreter", gom.meta_types.OGF.FileName, x.interpreter)
    m_list_plugin_2_config.create_arg_custom_attribute('interpreter', 'help', 'Interpreter used to execute the program (optional, e.g: python3)')
    
-   m_list_plugin_2_config.add_arg("gplugin", gom.meta_types.OGF.FileName, x.gplugin_file)
-   m_list_plugin_2_config.create_arg_custom_attribute('gplugin','help', 'Optional, only if you expose parameters of the plugin via a .gplugin.txt file')
    m_list_plugin_2_config.create_custom_attribute('menu','/Externals/Manage plugins/Modify')
    
 end 
