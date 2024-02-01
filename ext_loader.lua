@@ -365,9 +365,11 @@ end
 
 function add_ext_plugin(name, program, interpreter)
 
+   if name == nil or name == "" then 
+      print("Add-on name shouldn't be empty.")
    -- if ext_plugins[name] ~= nil then
    --    print("Plugin " .. name .. " already exist in external plugin list, please choose another name.")
-   if program == nil or program == "" then 
+   elseif program == nil or program == "" then 
       print("Program shouldn't be empty.")
    else
       -- Load plugin
