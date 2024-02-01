@@ -1,4 +1,4 @@
-# graphite-ext-addon-loader
+# graphite-addon-loader
 
 The `ext_loader.lua` script aims to load external programs or scripts as [Graphite](https://github.com/BrunoLevy/GraphiteThree) add-ons. 
 
