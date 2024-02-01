@@ -4,13 +4,21 @@ The `ext_loader.lua` script aims to load external programs or scripts as [Graphi
 
 ## Enable Graphite loading external programs
 
-You need to start graphite from the command line, passing the `ext_loader.lua` lua script as argument:
+### Quick start
+
+You need to start Graphite from the command line, passing the `ext_loader.lua` lua script as argument:
 
 `> graphite ext_loader.lua`
 
 Graphite will start and execute this script. A menu `Externals` should appear.
 
 ![](images/ext_addons_menu.png)
+
+### Configure Graphite
+
+To avoid to start graphite by command-line, specifying the lua script each time, we recommend to add this script to be load at startup. You have to go to `File -> Preferences -> Startup` and add the lua script `ext_loader.lua`. Don't forget to click on `Save Config.`.
+
+![](images/add_addon_loader_startup.png)
 
 ## Manage external add-ons
 
