@@ -163,7 +163,7 @@ function exec_bin(args)
    -- Get plugin to execute
    local plug_name = args['method']
    ext_plugin = ext_plugins[plug_name]
-   print("Plugin: "..ext_plugin.name)
+   print("Add-on: "..ext_plugin.name)
 
    -- Create a sandbox
    -- Get document root
@@ -268,21 +268,6 @@ mclass_scene_graph_command_superclass = gom.meta_types.OGF.SceneGraphCommands
 mclass_scene_graph_command = mclass_scene_graph_command_superclass.create_subclass('OGF::SceneGraphExternalCommands')
 mclass_scene_graph_command.add_constructor()
 
--- Our new class is a subclass of OGF::SceneGraphCommands
-yop = gom.meta_types.OGF.SceneGraphCommands
-yopi    = yop.create_subclass('OGF::SceneGraphShapesCommands')
-yopi.add_constructor()
-
-msquare = yopi.add_slot('square', nil)
-msquare.add_arg('name',gom.meta_types.OGF.NewMeshGrobName,'shape')
-msquare.create_arg_custom_attribute('name','help','name of the object to create')
-msquare.add_arg('size',gom.meta_types.double,1.0)
-msquare.create_arg_custom_attribute('size','help','edge length of the square')
-msquare.add_arg('center',gom.meta_types.bool,false)
-msquare.create_arg_custom_attribute('center','help','if set, dimensions go from -size/2 to size/2 instead of [0,size]')
-msquare.create_custom_attribute('menu','/Shapes')
-msquare.create_custom_attribute('help','guess what ? it creates a square (what an informative help bubble !!)')
-
 --------------------------------
 -- Get plugin paths          ---
 --------------------------------
@@ -305,7 +290,7 @@ end
 scene_graph.register_grob_commands(gom.meta_types.OGF.MeshGrob, mclass)
 
 
-local ext_plugin_list_file = project_root .. "/ext_plugin_list.txt"
+local ext_plugin_list_file = project_root .. "/ext_addon_list.txt"
 
 -- Load all external plugins from the ext_plugin_list.txt file
 function load_ext_plugins_from_file()
@@ -316,7 +301,7 @@ function load_ext_plugins_from_file()
    -- If doesn't, nothing to load
    if FileSystem.is_file(ext_plugin_list_file) then 
 
-      local plug_config = parameters_from_lines(io.lines(project_root .. "/ext_plugin_list.txt"))
+      local plug_config = parameters_from_lines(io.lines(ext_plugin_list_file))
       
 
       for _, x in pairs(plug_config) do 
@@ -324,7 +309,7 @@ function load_ext_plugins_from_file()
          load_ext_plugin(x.name, x.program, x.interpreter)
 
          -- Print
-         print('External plugin ' .. x.name .. ' was loaded.')
+         print('External add-on ' .. x.name .. ' was loaded.')
          print(' - Program: ' .. x.program)
          if not string.empty(x.interpreter) then
             print(' - Interpreter: ' .. x.interpreter)
@@ -390,7 +375,7 @@ function add_ext_plugin(name, program, interpreter)
       -- Overwrite file
       overwrite_ext_plugin_list_file()
 
-      print(name .. " was added to external plugin list. " .. ext_plugin_list_file)
+      print(name .. " was added to external add-ons list. " .. ext_plugin_list_file)
    end
 end
 
@@ -410,14 +395,14 @@ function overwrite_ext_plugin_list_file()
 end
 
 function clean_ext_plugin()
-   print("Clean up external plugins list file '" .. ext_plugin_list_file .. "'")
+   print("Clean up external add-ons list file '" .. ext_plugin_list_file .. "'")
    FileSystem.delete_file(ext_plugin_list_file)
 end
 
 function remove_ext_plugin(name)
    ext_plugins[name] = nil
    overwrite_ext_plugin_list_file()
-   print(name .. " was removed from external plugin list.")
+   print(name .. " was removed from external add-on list.")
 end
 
 function modify_plugin(args)
@@ -446,12 +431,12 @@ m_add_plugin = mclass_scene_graph_command.add_slot("Add", function(args)
    m_list_plugin_2_config.add_arg("interpreter", gom.meta_types.OGF.FileName, args.interpreter)
    m_list_plugin_2_config.create_arg_custom_attribute('interpreter', 'help', 'Interpreter used to execute the program (optional, e.g: python3)')
    
-   m_list_plugin_2_config.create_custom_attribute('menu','/Externals/Manage plugins/Modify')
+   m_list_plugin_2_config.create_custom_attribute('menu','/Externals/Manage add ons/Modify')
 
 end)
 
 m_add_plugin.add_arg("name", gom.meta_types.std.string, "")
-m_add_plugin.create_arg_custom_attribute('name','help','Choose a plugin name')
+m_add_plugin.create_arg_custom_attribute('name','help','Choose a add-on name')
 
 m_add_plugin.add_arg("program", gom.meta_types.OGF.FileName, "")
 m_add_plugin.create_arg_custom_attribute('program', 'help', 'Program to call (e.g: path to an executable / script)')
@@ -459,7 +444,7 @@ m_add_plugin.create_arg_custom_attribute('program', 'help', 'Program to call (e.
 m_add_plugin.add_arg("interpreter", gom.meta_types.OGF.FileName, "")
 m_add_plugin.create_arg_custom_attribute('interpreter', 'help', 'Interpreter used to execute the program (optional, e.g: python3)')
 
-m_add_plugin.create_custom_attribute('menu','/Externals/Manage plugins')
+m_add_plugin.create_custom_attribute('menu','/Externals/Manage add ons')
 
 -- Modify plugins menus
 for _, x in pairs(plug_list) do 
@@ -474,19 +459,19 @@ for _, x in pairs(plug_list) do
    m_list_plugin_2_config.add_arg("interpreter", gom.meta_types.OGF.FileName, x.interpreter)
    m_list_plugin_2_config.create_arg_custom_attribute('interpreter', 'help', 'Interpreter used to execute the program (optional, e.g: python3)')
    
-   m_list_plugin_2_config.create_custom_attribute('menu','/Externals/Manage plugins/Modify')
+   m_list_plugin_2_config.create_custom_attribute('menu','/Externals/Manage add ons/Modify')
    
 end 
 
 -- Remove plugin menu
 m_remove_plugin = mclass_scene_graph_command.add_slot("Remove", function(args) remove_ext_plugin(args.name) end)
 m_remove_plugin.add_arg("name", gom.meta_types.std.string, "")
-m_remove_plugin.create_arg_custom_attribute('name','help','Name of the plugin to remove')
-m_remove_plugin.create_custom_attribute('menu','/Externals/Manage plugins')
+m_remove_plugin.create_arg_custom_attribute('name','help','Name of the add-on to remove')
+m_remove_plugin.create_custom_attribute('menu','/Externals/Manage add ons')
 
 -- Clean list plugin file menu
 m_clean_plugin = mclass_scene_graph_command.add_slot("Clean_list", function(args) if args.sure == "yes" then clean_ext_plugin() end end)
 m_clean_plugin.add_arg("sure", gom.meta_types.std.string, "no")
 m_clean_plugin.create_arg_custom_attribute('sure','help','Type yes if you are sure')
-m_clean_plugin.create_custom_attribute('menu','/Externals/Manage plugins')
+m_clean_plugin.create_custom_attribute('menu','/Externals/Manage add ons')
 
