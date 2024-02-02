@@ -1,6 +1,13 @@
 -- Lua (Keep this comment, this is an indication for editor's 'run' command)
 
 --------------------------------
+-- Global Paths              ---
+--------------------------------
+    
+-- root
+local project_root = gom.get_environment_value("PROJECT_ROOT")
+
+--------------------------------
 -- Utils                     ---
 --------------------------------
 
@@ -32,6 +39,14 @@ function os.capture(cmd, raw)
    s = string.gsub(s, '%s+$', '')
    s = string.gsub(s, '[\n\r]+', ' ')
    return s
+end
+
+function os.capture2(name, cmd)
+   local param_file = project_root .. "/" .. name .. "_params.epf"
+   -- Execute and redirect stdout out into a file (cannot use popen, not crossplatform !)
+   os.execute(cmd .. " > " .. param_file)
+   -- Return EPF by lines
+   return io.lines(param_file)
 end
 
 function to_table(it)
@@ -269,15 +284,6 @@ mclass_scene_graph_command = mclass_scene_graph_command_superclass.create_subcla
 mclass_scene_graph_command.add_constructor()
 
 --------------------------------
--- Get plugin paths          ---
---------------------------------
-    
--- plugins paths
-local project_root = gom.get_environment_value("PROJECT_ROOT")
-local bin_path = project_root.."/plugins/external/binaries/"
-local scripts_path = project_root.."/plugins/external/scripts/"
-
---------------------------------
 -- Draw menus                ---
 --------------------------------
 
@@ -343,9 +349,12 @@ function load_ext_plugin(name, program, interpreter)
    end
    call_cmd = call_cmd .. program
 
-   local str_params = os.capture(call_cmd .. " --show-params", true)
-   -- Split lines and map string parameters to object parameters
-   lines = string.split(str_params, "\r\n")
+   -- local str_params = os.capture(call_cmd .. " --show-params", true)
+   -- -- Split lines and map string parameters to object parameters
+   -- lines = string.split(str_params, "\r\n")
+
+   local lines = os.capture2(name, call_cmd .. " --show-params")
+
    local parameters = parameters_from_lines(lines)
    
    -- Create a new plugin object
