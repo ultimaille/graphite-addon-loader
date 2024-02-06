@@ -57,14 +57,17 @@ function to_table(it)
    return t
 end
 
+-- Remove some characters that graphite doesn't support
 function string.clean(str)
    return str:gsub("%-", "_"):gsub("% ", "_"):gsub("%/", "_"):gsub("%.", "_")
 end
 
+-- Check whether a string is empty or not
 function string.empty(str)
    return str == nil or str == ""
 end
 
+-- Count number of element in a table
 function table_count(t)
    local count = 0
    for _ in pairs(t) do 
@@ -73,6 +76,7 @@ function table_count(t)
    return count
 end
 
+-- Concat two tables
 function concat_table(t1, t2) 
    local t = {}
    for _, v in pairs(t1) do 
@@ -120,27 +124,28 @@ function parameters_from_lines(lines)
    return parameters
 end
 
-function map_param(param, val)
+function map_param(sandbox_dir, param, val)
    
    if val == nil then 
       val = ""
    end
 
    -- should apply a target format ?
-   if param.type == 'input' and scene_graph.current() ~= nil then
-      return param.name.."="..scene_graph.current().filename
+   if param.type == 'input' then
+      local transfert_filename = sandbox_dir..'/'.."transfert.geogram"
+      return param.name.."="..transfert_filename
    else
       return param.name.."="..tostring(val)
    end
 end 
 
 -- format parameters into a string key1=value1 key2=value2 ...
-function format_args(params, args)
+function format_args(sandbox_dir, params, args)
    
    local str = ""
    for _, param in pairs(params) do 
       local clean_param_name = string.clean(param.name)
-      str = str.." "..map_param(param, args[clean_param_name])
+      str = str.." "..map_param(sandbox_dir, param, args[clean_param_name])
    end 
    return str
 end
@@ -175,6 +180,12 @@ function exec_bin(args)
    print('args='..tostring(args))
    print('self='..tostring(args.self))
    
+   -- Check whether a model selected
+   if scene_graph.current() == nil then
+      print('No object selected.')
+      return
+   end
+
    -- Get plugin to execute
    local plug_name = args['method']
    ext_plugin = ext_plugins[plug_name]
@@ -187,12 +198,20 @@ function exec_bin(args)
    local sandbox_dir = project_root .. "/" .. "sandbox_" .. os.clock()
    FileSystem.create_directory(sandbox_dir)
    print("Sandbox dir created: "..sandbox_dir)
+
+   -- Save & Copy current model (in order to keep last changes that occurred to the model !)
+   -- TODO UUID here !
+   local transfert_filename = sandbox_dir..'/'.."transfert.geogram"
+   if not scene_graph.current().save(transfert_filename) then
+      print('An error occurred when transfering the current model to add-on.')
+      return
+   end
+
    -- exec bin in sandbox
-   
    local wd = FileSystem.get_current_working_directory()
    FileSystem.set_current_working_directory(sandbox_dir)
 
-   local cmd = ext_plugin.call_cmd .. " " .. format_args(ext_plugin.parameters, args)
+   local cmd = ext_plugin.call_cmd .. " " .. format_args(sandbox_dir, ext_plugin.parameters, args)
    
    print('call: ' .. cmd)
    -- Run command
@@ -200,6 +219,8 @@ function exec_bin(args)
 
    FileSystem.set_current_working_directory(wd)
 
+   --
+   scene_graph.current().selections = {}
    load_outputs(sandbox_dir)
 
    cleanup_sandbox(sandbox_dir)
@@ -212,7 +233,8 @@ t_map = {
    int = gom.meta_types.int, 
    bool = gom.meta_types.bool, 
    string = gom.meta_types.std.string, 
-   file = gom.meta_types.OGF.FileName
+   file = gom.meta_types.OGF.FileName,
+   input = gom.meta_types.OGF.FileName,
 }
 
 function draw_menu(mclass, ext_plugin)
@@ -233,7 +255,8 @@ function draw_menu(mclass, ext_plugin)
 
       local clean_param_name = string.clean(param.name)
 
-      if t_map[param.type] ~= nil then
+      -- TODO fix condition because display wrong error message when param.type = input
+      if t_map[param.type] ~= nil and param.type ~= 'input' then
          if param.value ~= "undefined" then
             m.add_arg(clean_param_name, t_map[param.type], param.value)
          else
@@ -416,9 +439,12 @@ function remove_ext_plugin(name)
    print(name .. " was removed from external add-on list.")
 end
 
-function modify_plugin(args)
-   -- TODO checkings
-   add_ext_plugin(args.name, args.program, args.interpreter)
+function modify_plugin(name, args)
+   -- Function is curryfied
+   local modify_plugin_exec = function(args)
+      add_ext_plugin(name, args.program, args.interpreter)
+   end
+   return modify_plugin_exec
 end
 
 -- Make our new commands visible from MeshGrob
@@ -434,7 +460,7 @@ m_add_plugin = mclass_scene_graph_command.add_slot("Add", function(args)
 
    add_ext_plugin(args.name, args.program, args.interpreter) 
    
-   m_list_plugin_2_config = mclass_scene_graph_command.add_slot(args.name, modify_plugin)
+   m_list_plugin_2_config = mclass_scene_graph_command.add_slot(args.name, modify_plugin(args.name))
 
    m_list_plugin_2_config.add_arg("program", gom.meta_types.OGF.FileName, args.program)
    m_list_plugin_2_config.create_arg_custom_attribute('program', 'help', 'Program to call (e.g: path to an executable / script)')
@@ -459,7 +485,7 @@ m_add_plugin.create_custom_attribute('menu','/Externals/Manage add ons')
 
 -- Modify plugins menus
 for _, x in pairs(plug_list) do 
-   m_list_plugin_2_config = mclass_scene_graph_command.add_slot(x.name, modify_plugin)
+   m_list_plugin_2_config = mclass_scene_graph_command.add_slot(x.name, modify_plugin(x.name))
 
    -- m_list_plugin_2_config.add_arg("name", gom.meta_types.std.string, x.name)
    -- m_list_plugin_2_config.create_arg_custom_attribute('name','help','Choose a plugin name')
