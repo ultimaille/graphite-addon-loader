@@ -195,7 +195,7 @@ function check_args(params, args)
    return true
 end
 
-function map_param(sandbox_dir, param, val)
+function map_param(input_path, param, val)
    
    if val == nil then 
       val = ""
@@ -203,20 +203,19 @@ function map_param(sandbox_dir, param, val)
 
    -- should apply a target format ?
    if param.type == 'input' then
-      local transfert_filename = sandbox_dir..'/'.."transfert.geogram"
-      return param.name.."="..transfert_filename
+      return param.name.."="..input_path
    else
       return param.name.."="..tostring(val)
    end
 end 
 
 -- format parameters into a string key1=value1 key2=value2 ...
-function format_args(sandbox_dir, params, args)
+function format_args(input_path, params, args)
    
    local str = ""
    for _, param in pairs(params) do 
       local clean_param_name = string.clean(param.name)      
-      str = str.." "..map_param(sandbox_dir, param, args[clean_param_name])
+      str = str.." "..map_param(input_path, param, args[clean_param_name])
    end 
 
    return str
@@ -257,11 +256,14 @@ function exec_bin(args)
       return
    end
 
+   local object = scene_graph.current()
+
    -- Get plugin to execute
    local plug_name = args['method']
    ext_plugin = ext_plugins[plug_name]
    print("Add-on: "..ext_plugin.name)
 
+   -- Check arguments
    if not check_args(ext_plugin.parameters, args) then 
       print("Abort add-on call.")
       return
@@ -277,8 +279,8 @@ function exec_bin(args)
 
    -- Save & Copy current model (in order to keep last changes that occurred to the model !)
    -- TODO UUID here !
-   local transfert_filename = sandbox_dir..'/'.."transfert.geogram"
-   if not scene_graph.current().save(transfert_filename) then
+   local input_model_path = sandbox_dir .. '/' .. object.name .. "_" .. os.clock() .. ".geogram"
+   if not object.save(input_model_path) then
       print('An error occurred when transfering the current model to add-on.')
       return
    end
@@ -287,19 +289,24 @@ function exec_bin(args)
    local wd = FileSystem.get_current_working_directory()
    FileSystem.set_current_working_directory(sandbox_dir)
 
-   local str_args = format_args(sandbox_dir, ext_plugin.parameters, args)
+   local str_args = format_args(input_model_path, ext_plugin.parameters, args)
    local cmd = ext_plugin.call_cmd .. " " .. str_args
    
    print('call: ' .. cmd)
    -- Run command
    os.execute(cmd)
 
+   -- Reset working dir
    FileSystem.set_current_working_directory(wd)
 
-   --
-   scene_graph.current().selections = {}
+   -- Clean up model used as input
+   FileSystem.delete_file(input_model_path)
+
+   -- Load models found into sandbox
+   object.selections = {}
    load_outputs(sandbox_dir)
 
+   -- Clean up if empty
    cleanup_sandbox(sandbox_dir)
 end
 
