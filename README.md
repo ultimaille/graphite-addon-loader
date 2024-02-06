@@ -2,25 +2,19 @@
 
 The `ext_loader.lua` script aims to load external programs or scripts as [Graphite](https://github.com/BrunoLevy/GraphiteThree) add-ons. 
 
-## Enable Graphite loading external programs
+## Enable Graphite loading add-ons
 
-### Quick start
+### Configure Graphite
 
-You need to start Graphite from the command line, passing the `ext_loader.lua` lua script as argument:
+To avoid to start graphite by command-line, specifying the lua script each time, we recommend to add this script to be load at startup. You have to go to `File -> Preferences -> Startup` and add the lua script `ext_loader.lua`. Don't forget to click on `Save Config.` and restart Graphite.
 
-`> graphite ext_loader.lua`
+![](images/add_addon_loader_startup.png)
 
 Graphite will start and execute this script. A menu `Externals` should appear.
 
 ![](images/ext_addons_menu.png)
 
-### Configure Graphite
-
-To avoid to start graphite by command-line, specifying the lua script each time, we recommend to add this script to be load at startup. You have to go to `File -> Preferences -> Startup` and add the lua script `ext_loader.lua`. Don't forget to click on `Save Config.`.
-
-![](images/add_addon_loader_startup.png)
-
-## Manage external add-ons
+## Manage add-ons
 
 External add-ons can be managed via the menu `Externals -> Manage add-ons`.
 
@@ -50,13 +44,17 @@ You can clean up the list of external add-ons via the menu `Externals -> Manage 
 
 Note: All external add-ons are listed in the file `ext_addon_list.txt` in the Graphite root folder.
 
-## How Graphite recognize external add-ons ?
+---
+
+## Create add-ons
+
+### How Graphite recognize external add-ons ?
 
 To enable Graphite loading add-ons and generate the appropriate user interface (UI), it is necessary to present program parameters in a specific format that can be read and understood by Graphite. Let's call this format __EPF format__ for External add-on Format / Expose Parameter Format. 
 
 This format is obtained by Graphite when executing `ext_loader.lua` by calling a program with `--show-params` argument, returning program parameters as __EPF format__.
 
-## EPF format
+### EPF format
 
 __EPF format__ is very simple and looks like this:
 
@@ -79,7 +77,7 @@ Each line contains data about one parameter:
 Line that start with `#` are comments.
 
 
-## Make a program recognizable by Graphite
+### Make a program recognizable by Graphite
 
 To turn a program into an external add-on recognizable by `ext_loader`, your program must: 
 
