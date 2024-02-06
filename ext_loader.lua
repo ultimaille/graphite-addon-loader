@@ -62,6 +62,10 @@ function string.clean(str)
    return str:gsub("%-", "_"):gsub("% ", "_"):gsub("%/", "_"):gsub("%.", "_")
 end
 
+function string.starts(str, start)
+   return string.sub(str,1,string.len(start))==start
+end
+
 -- Check whether a string is empty or not
 function string.empty(str)
    return str == nil or str == ""
@@ -87,6 +91,22 @@ function concat_table(t1, t2)
    end  
    return t
 end 
+
+--------------------------------
+-- Graphite utils            ---
+--------------------------------
+
+function get_attributes_data(object)
+   local str_attrs = string.split(object.attributes, ';')
+
+   local attr = {}
+   for str_attr in str_attrs do 
+      local primitive, name = table.unpack(to_table(string.split(str_attr, '.')))
+      attr[name] = {name = name, primitive = primitive}
+   end
+
+   return attr
+end
 
 --------------------------------
 -- Global                    ---
@@ -124,6 +144,57 @@ function parameters_from_lines(lines)
    return parameters
 end
 
+function check_arg(param, val)
+
+   local success = true 
+
+   -- If parameter is of attribute type
+   if (string.starts(param.type, 'vertices') 
+      or string.starts(param.type, 'facets') 
+      or string.starts(param.type, 'edges')
+      or string.starts(param.type, 'cells')
+   ) then
+      
+      local actual_attrs_data = get_attributes_data(scene_graph.current())
+
+      -- Check attribute existence
+      if actual_attrs_data[val] == nil then 
+         print("Attribute " .. val .. " doesn't exists.")
+         success = false
+      else 
+      -- Check attribute type consistency between expected and actual
+         local expected_attr_primitive, expected_attr_type, expected_attr_dim = table.unpack(to_table(string.split(param.type, '.')))
+         local actual_attr_data = actual_attrs_data[val]
+         
+         if expected_attr_primitive ~= actual_attr_data['primitive'] then 
+            print(
+               "Parameter ".. param.name .. 
+               " expect an attribute of type " .. param.type .. 
+               ", but attribute " .. val .. 
+               " of type " ..  actual_attr_data['primitive'] .. " was given."
+            )
+            success = false
+         end
+         
+      end
+
+   end 
+
+   return success
+end
+
+function check_args(params, args)
+   
+   for _, param in pairs(params) do 
+      local clean_param_name = string.clean(param.name)
+      if not check_arg(param, args[clean_param_name]) then 
+         return false
+      end
+   end 
+
+   return true
+end
+
 function map_param(sandbox_dir, param, val)
    
    if val == nil then 
@@ -144,9 +215,10 @@ function format_args(sandbox_dir, params, args)
    
    local str = ""
    for _, param in pairs(params) do 
-      local clean_param_name = string.clean(param.name)
+      local clean_param_name = string.clean(param.name)      
       str = str.." "..map_param(sandbox_dir, param, args[clean_param_name])
    end 
+
    return str
 end
 
@@ -178,7 +250,6 @@ end
 
 function exec_bin(args)
    print('args='..tostring(args))
-   print('self='..tostring(args.self))
    
    -- Check whether a model selected
    if scene_graph.current() == nil then
@@ -190,6 +261,11 @@ function exec_bin(args)
    local plug_name = args['method']
    ext_plugin = ext_plugins[plug_name]
    print("Add-on: "..ext_plugin.name)
+
+   if not check_args(ext_plugin.parameters, args) then 
+      print("Abort add-on call.")
+      return
+   end
 
    -- Create a sandbox
    -- Get document root
@@ -211,7 +287,8 @@ function exec_bin(args)
    local wd = FileSystem.get_current_working_directory()
    FileSystem.set_current_working_directory(sandbox_dir)
 
-   local cmd = ext_plugin.call_cmd .. " " .. format_args(sandbox_dir, ext_plugin.parameters, args)
+   local str_args = format_args(sandbox_dir, ext_plugin.parameters, args)
+   local cmd = ext_plugin.call_cmd .. " " .. str_args
    
    print('call: ' .. cmd)
    -- Run command
@@ -255,22 +332,21 @@ function draw_menu(mclass, ext_plugin)
 
       local clean_param_name = string.clean(param.name)
 
-      -- TODO fix condition because display wrong error message when param.type = input
-      if t_map[param.type] ~= nil and param.type ~= 'input' then
+      -- Map string param type to gom type
+      local param_type = t_map[param.type]
+      if param_type == nil then 
+         param_type = gom.meta_types.std.string
+      end
+
+      -- Doesn't display input type as it will be filled automatically by the current model
+      if param.type ~= 'input' then
          if param.value ~= "undefined" then
-            m.add_arg(clean_param_name, t_map[param.type], param.value)
+            m.add_arg(clean_param_name, param_type, param.value)
          else
-            m.add_arg(clean_param_name, t_map[param.type])
+            m.add_arg(clean_param_name, param_type)
          end 
-      else 
-         print(
-            "Error: type '"
-            ..param.type
-            .."' for field '"
-            ..param.name
-            .."' isn't managed by 'external_processes.lua'. Maybe type is missing in t_map variable."
-         )
       end 
+
    end 
 
    m.create_custom_attribute('menu','/Externals')
@@ -278,14 +354,6 @@ function draw_menu(mclass, ext_plugin)
    return m
    
 end
-
-
--- -- Create a new enum type
--- menum = gom.meta_types.OGF.MetaEnum.create('Titi')
--- -- Declare enum values
--- menum.add_values({tutu=0,tata=1,toto=2})
--- -- Make new enum visible from GOM type system
--- gom.bind_meta_type(menum)
 
 -- We are going to create a subclass of OGF::MeshGrobCommands,
 -- let us first get the metaclass associated with OGF::MeshGrobCommands
@@ -512,3 +580,13 @@ m_clean_plugin.add_arg("sure", gom.meta_types.std.string, "no")
 m_clean_plugin.create_arg_custom_attribute('sure','help','Type yes if you are sure')
 m_clean_plugin.create_custom_attribute('menu','/Externals/Manage add ons')
 
+
+-- -- -- Create a new enum type
+-- m_attr_enum = gom.meta_types.OGF.MetaEnum.create('Attr')
+-- local str_attributes = scene_graph.current().scalar_attributes
+-- local str_attributes_list = string.split(';', str_attributes)
+-- local t_attr_enum = to_table(str_attributes_list)
+-- -- Declare enum values
+-- m_attr_enum.add_values(t_attr_enum)
+-- -- Make new enum visible from GOM type system
+-- gom.bind_meta_type(m_attr_enum)
