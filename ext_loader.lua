@@ -62,10 +62,6 @@ function string.clean(str)
    return str:gsub("%-", "_"):gsub("% ", "_"):gsub("%/", "_"):gsub("%.", "_")
 end
 
-function string.starts(str, start)
-   return string.sub(str,1,string.len(start))==start
-end
-
 -- Check whether a string is empty or not
 function string.empty(str)
    return str == nil or str == ""
@@ -99,13 +95,30 @@ end
 function get_attributes_data(object)
    local str_attrs = string.split(object.attributes, ';')
 
+   S = scene_graph.find_or_create_object('OGF::MeshGrob', object.name)
+   E = S.I.Editor
+
    local attr = {}
    for str_attr in str_attrs do 
       local primitive, name = table.unpack(to_table(string.split(str_attr, '.')))
-      attr[name] = {name = name, primitive = primitive}
+      local attr_data  = E.find_attribute(str_attr)
+      attr[str_attr] = {name = name, primitive = primitive, dim = attr_data.dimension, type = attr_data.element_meta_type.name}
    end
 
    return attr
+end
+
+-- Check whether the parameter type belong to an attribute type (vertices, facets, edges...)
+function is_param_is_type_attribute(param_type)
+   return (string.starts_with(param_type, 'vertices') 
+   or string.starts_with(param_type, 'facets') 
+   or string.starts_with(param_type, 'edges')
+   or string.starts_with(param_type, 'cells'))
+end
+
+-- Extract attribute name long name (e.g: vertices.my_attr -> my_attr)
+function get_attribute_shortname(attr_name)
+   return to_table(string.split(attr_name, '.'))[2]
 end
 
 --------------------------------
@@ -149,11 +162,7 @@ function check_arg(param, val)
    local success = true 
 
    -- If parameter is of attribute type
-   if (string.starts(param.type, 'vertices') 
-      or string.starts(param.type, 'facets') 
-      or string.starts(param.type, 'edges')
-      or string.starts(param.type, 'cells')
-   ) then
+   if is_param_is_type_attribute(param.type) then
       
       local actual_attrs_data = get_attributes_data(scene_graph.current())
 
@@ -162,16 +171,16 @@ function check_arg(param, val)
          print("Attribute " .. val .. " doesn't exists.")
          success = false
       else 
-      -- Check attribute type consistency between expected and actual
-         local expected_attr_primitive, expected_attr_type, expected_attr_dim = table.unpack(to_table(string.split(param.type, '.')))
          local actual_attr_data = actual_attrs_data[val]
+         local actual_param_type = actual_attr_data['primitive'] .. "." .. actual_attr_data['type'] .. "." .. actual_attr_data['dim']
          
-         if expected_attr_primitive ~= actual_attr_data['primitive'] then 
+         -- Check attribute type consistency between expected and actual
+         if param.type ~= actual_param_type then 
             print(
-               "Parameter ".. param.name .. 
-               " expect an attribute of type " .. param.type .. 
-               ", but attribute " .. val .. 
-               " of type " ..  actual_attr_data['primitive'] .. " was given."
+               "Parameter '".. param.name .. 
+               "' expect an attribute of type '" .. param.type .. 
+               "', but attribute '" .. val .. 
+               "' of type '" ..  actual_param_type .. "' was given."
             )
             success = false
          end
@@ -197,17 +206,21 @@ end
 
 function map_param(input_path, param, val)
    
+   local str_val = ""
    if val == nil then 
-      val = ""
+      str_val = ""
+   end 
+
+   if param.type == 'input' then
+      str_val = input_path
+   elseif is_param_is_type_attribute(param.type) then 
+      str_val = get_attribute_shortname(val)
+   else
+      str_val = tostring(val)
    end
 
-   -- should apply a target format ?
-   if param.type == 'input' then
-      return param.name.."="..input_path
-   else
-      return param.name.."="..tostring(val)
-   end
-end 
+   return param.name .. "=" .. str_val
+end
 
 -- format parameters into a string key1=value1 key2=value2 ...
 function format_args(input_path, params, args)
@@ -247,6 +260,7 @@ function cleanup_sandbox(sandbox_dir)
    end
 end
 
+-- Execute program
 function exec_bin(args)
    print('args='..tostring(args))
    
@@ -353,6 +367,13 @@ function draw_menu(mclass, ext_plugin)
             m.add_arg(clean_param_name, param_type)
          end 
       end 
+
+      -- If parameter type is an attribute type, add attribute combobox to UI
+      if is_param_is_type_attribute(param.type) then 
+         m.create_arg_custom_attribute(clean_param_name, 'handler','combo_box')
+         m.create_arg_custom_attribute(clean_param_name, 'values','$grob.attributes')
+      end
+
 
    end 
 
