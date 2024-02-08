@@ -293,7 +293,9 @@ function exec_bin(args)
 
    -- Save & Copy current model (in order to keep last changes that occurred to the model !)
    -- TODO UUID here !
-   local input_model_path = sandbox_dir .. '/' .. object.name .. "_" .. os.clock() .. ".geogram"
+   local file_extension = FileSystem.extension(object.filename)
+   print(file_extension)
+   local input_model_path = sandbox_dir .. '/' .. object.name .. "_" .. os.clock() .. "." .. file_extension
    if not object.save(input_model_path) then
       print('An error occurred when transfering the current model to add-on.')
       return
