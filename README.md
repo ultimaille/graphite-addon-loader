@@ -1,12 +1,12 @@
 # graphite-addon-loader
 
-The `ext_loader.lua` script aims to load external programs or scripts as [Graphite](https://github.com/BrunoLevy/GraphiteThree) add-ons. 
+The `addon_loader.lua` script aims to load external programs or scripts as [Graphite](https://github.com/BrunoLevy/GraphiteThree) add-ons. 
 
 ## Enable Graphite loading add-ons
 
 ### Configure Graphite
 
-To avoid to start graphite by command-line, specifying the lua script each time, we recommend to add this script to be load at startup. You have to go to `File -> Preferences -> Startup` and add the lua script `ext_loader.lua`. Don't forget to click on `Save Config.` and restart Graphite.
+To avoid to start graphite by command-line, specifying the lua script each time, we recommend to add this script to be load at startup. You have to go to `File -> Preferences -> Startup` and add the lua script `addon_loader.lua`. Don't forget to click on `Save Config.` and restart Graphite.
 
 ![](images/add_addon_loader_startup.png)
 
@@ -40,7 +40,7 @@ You can remove an external add-on via the menu `Externals -> Manage add-ons -> R
 
 ### Clean up add-on list file
 
-You can clean up the list of external add-ons via the menu `Externals -> Manage add-ons -> Clean list`. This command just clean up the list of external add-ons that Graphite should load. In fact, it remove the file `ext_add-on_list.txt`. This file will be re-created automatically by `ext_loader` as soon as you add a new external add-on.
+You can clean up the list of external add-ons via the menu `Externals -> Manage add-ons -> Clean list`. This command just clean up the list of external add-ons that Graphite should load. In fact, it remove the file `ext_add-on_list.txt`. This file will be re-created automatically by `addon_loader` as soon as you add a new external add-on.
 
 Note: All external add-ons are listed in the file `ext_addon_list.txt` in the Graphite root folder.
 
@@ -62,7 +62,7 @@ _Note: Mac OS binaries are not signed, but we hope that this will be the case in
 
 To enable Graphite loading add-ons and generate the appropriate user interface (UI), it is necessary to present program parameters in a specific format that can be read and understood by Graphite. Let's call this format __EPF format__ for External add-on Format / Expose Parameter Format. 
 
-This format is obtained by Graphite when executing `ext_loader.lua` by calling a program with `--show-params` argument, returning program parameters as __EPF format__.
+This format is obtained by Graphite when executing `addon_loader.lua` by calling a program with `--show-params` argument, returning program parameters as __EPF format__.
 
 ### EPF format
 
@@ -89,7 +89,7 @@ Line that start with `#` are comments.
 
 ### Make a program recognizable by Graphite
 
-To turn a program into an external add-on recognizable by `ext_loader`, your program must: 
+To turn a program into an external add-on recognizable by `addon_loader`, your program must: 
 
  - Respond to the `--show-params` argument, returning program parameters as __EPF format__
  - Accept to be called with arguments as the following format: `k1=v2 k2=v2 ... kn=vn` with `ki` the parameter name and `vi` the value of the parameter (e.g: `my_program param_string=hello param_bool=true param_int=1 ...`)
