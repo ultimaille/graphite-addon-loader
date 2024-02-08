@@ -44,6 +44,16 @@ You can clean up the list of external add-ons via the menu `Externals -> Manage 
 
 Note: All external add-ons are listed in the file `ext_addon_list.txt` in the Graphite root folder.
 
+## Try with an existing add-on
+
+As you probably don't have any add-ons at hand, we've put together a series of small add-on examples for you. You can go to:
+
+https://github.com/ultimaille/graphite-addon-examples/releases/tag/v1.0 
+
+You will find binary of add-ons that you can add to Graphite. 
+
+_Note: Mac OS binaries are not signed, but we hope that this will be the case in the future._
+
 ---
 
 ## Create add-ons
@@ -84,4 +94,6 @@ To turn a program into an external add-on recognizable by `ext_loader`, your pro
  - Respond to the `--show-params` argument, returning program parameters as __EPF format__
  - Accept to be called with arguments as the following format: `k1=v2 k2=v2 ... kn=vn` with `ki` the parameter name and `vi` the value of the parameter (e.g: `my_program param_string=hello param_bool=true param_int=1 ...`)
  
-Note: for the programs written in __C++__, we encourage you to use https://github.com/ultimaille/param-parser. This micro library help you to declare parameters and return __EPF format__ when `--show-params` is requested.
+_Note: for the programs written in __C++__, we encourage you to use https://github.com/ultimaille/param-parser. This micro library help you to declare parameters and return __EPF format__ when `--show-params` is requested._
+
+You will find add-on source C++ examples at https://github.com/ultimaille/graphite-addon-examples.
