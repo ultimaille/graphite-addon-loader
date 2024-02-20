@@ -337,6 +337,14 @@ t_map = {
    input = gom.meta_types.OGF.FileName,
 }
 
+t_attr_map = {
+   double = 'OGF::Numeric::float64',
+   float = 'OGF::Numeric::float64',
+   int = 'OGF::Numeric::int32',
+   uint = 'OGF::Numeric::uint32',
+   bool = 'OGF::Numeric::uint8',
+}
+
 function draw_menu(mclass, ext_plugin)
 
    local parameters = ext_plugin.parameters   
@@ -373,7 +381,11 @@ function draw_menu(mclass, ext_plugin)
       -- If parameter type is an attribute type, add attribute combobox to UI
       if is_param_is_type_attribute(param.type) then 
          m.create_arg_custom_attribute(clean_param_name, 'handler','combo_box')
-         m.create_arg_custom_attribute(clean_param_name, 'values','$grob.attributes')
+         -- m.create_arg_custom_attribute(clean_param_name, 'values', '$grob.attributes')
+
+         primitive, type, dim = table.unpack(to_table(string.split(param.type, '.')))
+         print('$grob.list_attributes("' .. primitive .. '","' .. type .. '","' .. tostring(dim) .. '")')
+         m.create_arg_custom_attribute(clean_param_name, 'values', '$grob.list_attributes("' .. primitive .. '","' .. t_attr_map[type] .. '","' .. tostring(dim) .. '")')
       end
 
 
