@@ -174,8 +174,12 @@ function check_arg(param, val)
          local actual_attr_data = actual_attrs_data[val]
          local actual_param_type = actual_attr_data['primitive'] .. "." .. actual_attr_data['type'] .. "." .. actual_attr_data['dim']
          
+         -- Bruno have renammed vertices.bool type to vertices.OGF::Numeric::uint8 for example between two versions of graphite...
+         -- so I have to check the new name and old name to be sure it works
+         local actual_param_type_renamed = actual_attr_data['primitive'] .. "." .. t_attr_reverse_map(actual_attr_data['type']) .. "." .. actual_attr_data['dim']
+
          -- Check attribute type consistency between expected and actual
-         if param.type ~= actual_param_type then 
+         if not (param.type == actual_param_type or param.type == actual_param_type_renamed) then 
             print(
                "Parameter '".. param.name .. 
                "' expect an attribute of type '" .. param.type .. 
@@ -345,6 +349,20 @@ t_attr_map = {
    bool = 'OGF::Numeric::uint8',
 }
 
+function t_attr_reverse_map(ogf_type)
+   if ogf_type == 'OGF::Numeric::float64' then 
+      return 'double'
+   elseif ogf_type == 'OGF::Numeric::int32' then 
+      return 'int'
+   elseif ogf_type == 'OGF::Numeric::uint32' then 
+      return 'uint'
+   elseif ogf_type == 'OGF::Numeric::uint8' then 
+      return 'bool'
+   else 
+      return 'unknown'
+   end 
+end
+
 function draw_menu(mclass, ext_plugin)
 
    local parameters = ext_plugin.parameters   
@@ -382,9 +400,8 @@ function draw_menu(mclass, ext_plugin)
       if is_param_is_type_attribute(param.type) then 
          m.create_arg_custom_attribute(clean_param_name, 'handler','combo_box')
          -- m.create_arg_custom_attribute(clean_param_name, 'values', '$grob.attributes')
-
+         -- Filter by attribute type / primitive
          primitive, type, dim = table.unpack(to_table(string.split(param.type, '.')))
-         print('$grob.list_attributes("' .. primitive .. '","' .. type .. '","' .. tostring(dim) .. '")')
          m.create_arg_custom_attribute(clean_param_name, 'values', '$grob.list_attributes("' .. primitive .. '","' .. t_attr_map[type] .. '","' .. tostring(dim) .. '")')
       end
 
