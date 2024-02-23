@@ -176,7 +176,7 @@ function check_arg(param, val)
          
          -- Bruno have renammed vertices.bool type to vertices.OGF::Numeric::uint8 for example between two versions of graphite...
          -- so I have to check the new name and old name to be sure it works
-         local actual_param_type_renamed = actual_attr_data['primitive'] .. "." .. t_attr_reverse_map(actual_attr_data['type']) .. "." .. actual_attr_data['dim']
+         local actual_param_type_renamed = actual_attr_data['primitive'] .. "." .. t_attr_reverse_map[actual_attr_data['type']] .. "." .. actual_attr_data['dim']
 
          -- Check attribute type consistency between expected and actual
          if not (param.type == actual_param_type or param.type == actual_param_type_renamed) then 
@@ -349,19 +349,11 @@ t_attr_map = {
    bool = 'OGF::Numeric::uint8',
 }
 
-function t_attr_reverse_map(ogf_type)
-   if ogf_type == 'OGF::Numeric::float64' then 
-      return 'double'
-   elseif ogf_type == 'OGF::Numeric::int32' then 
-      return 'int'
-   elseif ogf_type == 'OGF::Numeric::uint32' then 
-      return 'uint'
-   elseif ogf_type == 'OGF::Numeric::uint8' then 
-      return 'bool'
-   else 
-      return 'unknown'
-   end 
-end
+t_attr_reverse_map = {}
+t_attr_reverse_map['OGF::Numeric::float64'] = 'double'
+t_attr_reverse_map['OGF::Numeric::int32'] = 'int'
+t_attr_reverse_map['OGF::Numeric::uint32'] = 'uint'
+t_attr_reverse_map['OGF::Numeric::uint8'] = 'bool'
 
 function draw_menu(mclass, ext_plugin)
 
@@ -462,8 +454,9 @@ function load_ext_plugins_from_file()
 
       for _, x in pairs(plug_config) do 
 
-         load_ext_plugin(x.name, x.program, x.interpreter)
-
+         local plug_ext = load_ext_plugin(x.name, x.program, x.interpreter)
+         -- Draw menu
+         draw_menu(mclass, plug_ext)
          -- Print
          print('External add-on ' .. x.name .. ' was loaded.')
          print(' - Program: ' .. x.program)
@@ -499,12 +492,7 @@ function load_ext_plugin(name, program, interpreter)
    end
    call_cmd = call_cmd .. program
 
-   -- local str_params = os.capture(call_cmd .. " --show-params", true)
-   -- -- Split lines and map string parameters to object parameters
-   -- lines = string.split(str_params, "\r\n")
-
    local lines = os.capture2(name, call_cmd .. " --show-params")
-
    local parameters = parameters_from_lines(lines)
    
    -- Create a new plugin object
@@ -515,24 +503,24 @@ function load_ext_plugin(name, program, interpreter)
       interpreter = interpreter,
       parameters = parameters
    }
-
+ 
    -- Keep plugin object in a associative map
    ext_plugins[plug_ext.name] = plug_ext
-   -- Draw menu
-   draw_menu(mclass, plug_ext)
+   
+   return plug_ext
 end
 
-function add_ext_plugin(name, program, interpreter)
+function add_ext_plugin(name, program, interpreter, update)
 
    if name == nil or name == "" then 
       print("Add-on name shouldn't be empty.")
-   -- if ext_plugins[name] ~= nil then
-   --    print("Plugin " .. name .. " already exist in external plugin list, please choose another name.")
    elseif program == nil or program == "" then 
       print("Program shouldn't be empty.")
    else
       -- Load plugin
-      load_ext_plugin(name, program, interpreter)
+      local plug_ext = load_ext_plugin(name, program, interpreter)
+      -- Draw menu
+      if not update then draw_menu(mclass, plug_ext) end
       -- Overwrite file
       overwrite_ext_plugin_list_file()
 
@@ -569,7 +557,7 @@ end
 function modify_plugin(name, args)
    -- Function is curryfied
    local modify_plugin_exec = function(args)
-      add_ext_plugin(name, args.program, args.interpreter)
+      add_ext_plugin(name, args.program, args.interpreter, true)
    end
    return modify_plugin_exec
 end
