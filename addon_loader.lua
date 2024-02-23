@@ -45,8 +45,8 @@ function os.capture2(name, cmd)
    local param_file = project_root .. "/" .. name .. "_params.epf"
    -- Execute and redirect stdout out into a file (cannot use popen, not crossplatform !)
    os.execute(cmd .. " > " .. param_file)
-   -- Return EPF by lines
-   return io.lines(param_file)
+   -- Return param file name
+   return param_file
 end
 
 function to_table(it)
@@ -65,6 +65,17 @@ end
 -- Check whether a string is empty or not
 function string.empty(str)
    return str == nil or str == ""
+end
+
+-- Check whether a name is valid
+function is_name_valid(name)
+   for i = 1, #name do 
+      local c = name:sub(i,i)
+      if c == "-" or c == " " or c == "/" or c == "." or c == "\\" then 
+         return false
+      end
+   end
+   return true
 end
 
 -- Count number of element in a table
@@ -492,7 +503,14 @@ function load_ext_plugin(name, program, interpreter)
    end
    call_cmd = call_cmd .. program
 
-   local lines = os.capture2(name, call_cmd .. " --show-params")
+   local param_file = os.capture2(clean_program_name, call_cmd .. " --show-params")
+
+   if not FileSystem.is_file(param_file) then 
+      return nil
+   end
+
+   local lines = io.lines(param_file)
+   
    local parameters = parameters_from_lines(lines)
    
    -- Create a new plugin object
@@ -514,11 +532,19 @@ function add_ext_plugin(name, program, interpreter, update)
 
    if name == nil or name == "" then 
       print("Add-on name shouldn't be empty.")
+   elseif not is_name_valid(name) then 
+      print("Name " .. name .. " is not valid. Please, choose a name without spaces or special characters.")
    elseif program == nil or program == "" then 
       print("Program shouldn't be empty.")
    else
-      -- Load plugin
+      -- Try to load plugin
       local plug_ext = load_ext_plugin(name, program, interpreter)
+
+      if not plug_ext then 
+         print("Unable to load " .. program .. " as an add-on.")
+         return 
+      end
+
       -- Draw menu
       if not update then draw_menu(mclass, plug_ext) end
       -- Overwrite file
