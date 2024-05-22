@@ -219,7 +219,7 @@ function check_args(params, args)
    return true
 end
 
-function map_param(input_path, param, val)
+function map_param(input_path, output_model_path, param, val)
    
    local str_val = ""
    if val == nil then 
@@ -228,6 +228,8 @@ function map_param(input_path, param, val)
 
    if param.type == 'input' then
       str_val = input_path
+   elseif param.name == 'result_path' then 
+      str_val = output_model_path
    elseif is_param_is_type_attribute(param.type) then 
       str_val = get_attribute_shortname(val)
    else
@@ -238,12 +240,12 @@ function map_param(input_path, param, val)
 end
 
 -- format parameters into a string key1=value1 key2=value2 ...
-function format_args(input_path, params, args)
+function format_args(input_path, output_model_path, params, args)
    
    local str = ""
    for _, param in pairs(params) do 
       local clean_param_name = string.clean(param.name)      
-      str = str.." "..map_param(input_path, param, args[clean_param_name])
+      str = str.." "..map_param(input_path, output_model_path, param, args[clean_param_name])
    end 
 
    return str
@@ -316,11 +318,13 @@ function exec_bin(args)
       return
    end
 
+   local output_model_path = sandbox_dir .. "/output"
+
    -- exec bin in sandbox
    local wd = FileSystem.get_current_working_directory()
    FileSystem.set_current_working_directory(sandbox_dir)
 
-   local str_args = format_args(input_model_path, ext_plugin.parameters, args)
+   local str_args = format_args(input_model_path, output_model_path, ext_plugin.parameters, args)
    local cmd = ext_plugin.call_cmd .. " " .. str_args
    
    print('call: ' .. cmd)
@@ -335,7 +339,7 @@ function exec_bin(args)
 
    -- Load models found into sandbox
    object.selections = {}
-   load_outputs(sandbox_dir)
+   load_outputs(output_model_path)
 
    -- Clean up if empty
    cleanup_sandbox(sandbox_dir)
@@ -390,8 +394,10 @@ function draw_menu(mclass, ext_plugin)
          param_type = gom.meta_types.std.string
       end
 
-      -- Doesn't display input type as it will be filled automatically by the current model
-      if param.type ~= 'input' then
+      -- Doesn't display special parameters that will be automatically filled by graphite !
+      -- - parameters with 'input' type
+      -- - parameter named 'result_path'
+      if param.type ~= 'input' and param.name ~= 'result_path' then
          if param.value ~= "undefined" then
             m.add_arg(clean_param_name, param_type, param.value)
          else
