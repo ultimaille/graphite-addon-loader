@@ -2,11 +2,20 @@
 
 The `addon_loader.lua` script aims to load external programs or scripts as [Graphite](https://github.com/BrunoLevy/GraphiteThree) add-ons. 
 
+## Prerequisites
+
+ - Graphite >= v3-1.8.8
+
 ## Enable Graphite loading add-ons
+
+### Get addon-loader
+
+ - Download the script file `addon_loader.lua`
+ - Put this script into a directory of your choice, **preferably in a non-volatile directory with a well-formed path**
 
 ### Configure Graphite
 
-To avoid to start graphite by command-line, specifying the lua script each time, we recommend to add this script to be load at startup. You have to go to `File -> Preferences -> Startup` and add the lua script `addon_loader.lua`. Don't forget to click on `Save Config.` and restart Graphite.
+You have to go to `File -> Preferences -> Startup` and add the lua script `addon_loader.lua`. **Don't forget to click on `Save Config.` and restart Graphite**.
 
 ![](images/add_addon_loader_startup.png)
 
