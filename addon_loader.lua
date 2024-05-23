@@ -390,7 +390,7 @@ function draw_menu(mclass, ext_plugin)
    -- filter parameters to exclude not visible
    local filtered_parameters = {}
    for i, param in pairs(parameters) do 
-      if param.visible == nil or param.visible == 'true' then 
+      if (param.visible == nil or param.visible == 'true') then 
          table.insert(filtered_parameters, param)
       end
    end
@@ -410,8 +410,8 @@ function draw_menu(mclass, ext_plugin)
 
       -- Doesn't display special parameters that will be automatically filled by graphite !
       -- - parameters with 'input' type
-      -- - parameter named 'result_path'
-      if param.type ~= 'input' and param.name ~= 'result_path' then
+      -- - parameter of type 'system'
+      if param.type ~= 'input' and param.type_of_param ~= 'system' then
          if param.value ~= "undefined" then
             m.add_arg(clean_param_name, param_type, param.value)
          else
