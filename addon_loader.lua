@@ -370,15 +370,15 @@ t_attr_reverse_map['OGF::Numeric::int32'] = 'int'
 t_attr_reverse_map['OGF::Numeric::uint32'] = 'uint'
 t_attr_reverse_map['OGF::Numeric::uint8'] = 'bool'
 
--- -- -- Create a new enum type
-m_attr_enum = gom.meta_types.OGF.MetaEnum.create('Yop')
--- local str_attributes = scene_graph.current().scalar_attributes
--- local str_attributes_list = string.split(';', str_attributes)
--- local t_attr_enum = to_table(str_attributes_list)
--- -- Declare enum values
-m_attr_enum.add_values({a = "a", b = "b"})
--- -- Make new enum visible from GOM type system
-gom.bind_meta_type(m_attr_enum)
+-- -- -- -- Create a new enum type
+-- m_attr_enum = gom.meta_types.OGF.MetaEnum.create('Yop')
+-- -- local str_attributes = scene_graph.current().scalar_attributes
+-- -- local str_attributes_list = string.split(';', str_attributes)
+-- -- local t_attr_enum = to_table(str_attributes_list)
+-- -- -- Declare enum values
+-- m_attr_enum.add_values({a = "a", b = "b"})
+-- -- -- Make new enum visible from GOM type system
+-- gom.bind_meta_type(m_attr_enum)
 
 
 function draw_menu(mclass, ext_plugin)
@@ -414,10 +414,12 @@ function draw_menu(mclass, ext_plugin)
          else
             m.add_arg(clean_param_name, param_type)
          end 
+
+         -- Add description as tooltip text
+         m.create_arg_custom_attribute(clean_param_name, 'help', param.description)
       end 
 
-      -- Add description as tooltip text
-      m.create_arg_custom_attribute(clean_param_name,'help',param.description)
+
 
 
       -- If parameter type is an attribute type, add attribute combobox to UI
@@ -429,6 +431,7 @@ function draw_menu(mclass, ext_plugin)
          m.create_arg_custom_attribute(clean_param_name, 'values', '$grob.list_attributes("' .. primitive .. '","' .. t_attr_map[type] .. '","' .. tostring(dim) .. '")')
       end
 
+      -- Possible values is set ! So should display a combo box with all choices
       if (not (string.empty(param.possible_values) or param.possible_values == 'undefined')) then 
          local values = param.possible_values:gsub(",", ";")
          m.create_arg_custom_attribute(clean_param_name, 'handler','combo_box')
@@ -554,17 +557,16 @@ function load_ext_plugin(name, program, interpreter)
    return plug_ext
 end
 
-function add_ext_plugin(name, program, interpreter, update)
+function add_ext_plugin(program, interpreter, update)
 
-   if name == nil or name == "" then 
-      print("Add-on name shouldn't be empty.")
-   elseif not is_name_valid(name) then 
-      print("Name " .. name .. " is not valid. Please, choose a name without spaces or special characters.")
-   elseif program == nil or program == "" then 
+   local program_name = FileSystem.base_name(program, false)
+   local clean_program_name = string.clean(program_name)
+
+   if program == nil or program == "" then 
       print("Program shouldn't be empty.")
    else
       -- Try to load plugin
-      local plug_ext = load_ext_plugin(name, program, interpreter)
+      local plug_ext = load_ext_plugin(clean_program_name, program, interpreter)
 
       if not plug_ext then 
          print("Unable to load " .. program .. " as an add-on.")
@@ -576,8 +578,10 @@ function add_ext_plugin(name, program, interpreter, update)
       -- Overwrite file
       overwrite_ext_plugin_list_file()
 
-      print(name .. " was added to external add-ons list. " .. ext_plugin_list_file)
+      print(clean_program_name .. " was added to external add-ons list. " .. ext_plugin_list_file)
    end
+
+   return clean_program_name
 end
 
 function overwrite_ext_plugin_list_file()
@@ -609,7 +613,7 @@ end
 function modify_plugin(name, args)
    -- Function is curryfied
    local modify_plugin_exec = function(args)
-      add_ext_plugin(name, args.program, args.interpreter, true)
+      add_ext_plugin(args.program, args.interpreter, true)
    end
    return modify_plugin_exec
 end
@@ -625,12 +629,9 @@ local plug_list = load_ext_plugins_from_file()
 -- Add plugin menu
 m_add_plugin = mclass_scene_graph_command.add_slot("Add", function(args) 
 
-   -- add_ext_plugin(args.name, args.program, args.interpreter) 
-   local program_name = FileSystem.base_name(args.program, false)
-
-   add_ext_plugin(string.clean(program_name), args.program, args.interpreter) 
+   local name = add_ext_plugin(args.program, args.interpreter) 
    
-   m_list_plugin_2_config = mclass_scene_graph_command.add_slot(args.name, modify_plugin(args.name))
+   m_list_plugin_2_config = mclass_scene_graph_command.add_slot(name, modify_plugin(name))
 
    m_list_plugin_2_config.add_arg("program", gom.meta_types.OGF.FileName, args.program)
    m_list_plugin_2_config.create_arg_custom_attribute('program', 'help', 'Program to call (e.g: path to an executable / script)')
@@ -641,9 +642,6 @@ m_add_plugin = mclass_scene_graph_command.add_slot("Add", function(args)
    m_list_plugin_2_config.create_custom_attribute('menu','/Externals/Manage add ons/Modify')
 
 end)
-
-m_add_plugin.add_arg("name", gom.meta_types.std.string, "")
-m_add_plugin.create_arg_custom_attribute('name','help','Choose a add-on name')
 
 m_add_plugin.add_arg("program", gom.meta_types.OGF.FileName, "")
 m_add_plugin.create_arg_custom_attribute('program', 'help', 'Program to call (e.g: path to an executable / script)')
