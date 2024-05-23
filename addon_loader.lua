@@ -405,6 +405,10 @@ function draw_menu(mclass, ext_plugin)
          end 
       end 
 
+      -- Add description as tooltip text
+      m.create_arg_custom_attribute(clean_param_name,'help',param.description)
+
+
       -- If parameter type is an attribute type, add attribute combobox to UI
       if is_param_is_type_attribute(param.type) then 
          m.create_arg_custom_attribute(clean_param_name, 'handler','combo_box')
