@@ -370,6 +370,17 @@ t_attr_reverse_map['OGF::Numeric::int32'] = 'int'
 t_attr_reverse_map['OGF::Numeric::uint32'] = 'uint'
 t_attr_reverse_map['OGF::Numeric::uint8'] = 'bool'
 
+-- -- -- Create a new enum type
+m_attr_enum = gom.meta_types.OGF.MetaEnum.create('Yop')
+-- local str_attributes = scene_graph.current().scalar_attributes
+-- local str_attributes_list = string.split(';', str_attributes)
+-- local t_attr_enum = to_table(str_attributes_list)
+-- -- Declare enum values
+m_attr_enum.add_values({a = "a", b = "b"})
+-- -- Make new enum visible from GOM type system
+gom.bind_meta_type(m_attr_enum)
+
+
 function draw_menu(mclass, ext_plugin)
 
    local parameters = ext_plugin.parameters   
@@ -418,6 +429,11 @@ function draw_menu(mclass, ext_plugin)
          m.create_arg_custom_attribute(clean_param_name, 'values', '$grob.list_attributes("' .. primitive .. '","' .. t_attr_map[type] .. '","' .. tostring(dim) .. '")')
       end
 
+      if (not (string.empty(param.possible_values) or param.possible_values == 'undefined')) then 
+         local values = param.possible_values:gsub(",", ";")
+         m.create_arg_custom_attribute(clean_param_name, 'handler','combo_box')
+         m.create_arg_custom_attribute(clean_param_name, 'values', values)
+      end
 
    end 
 
@@ -609,7 +625,10 @@ local plug_list = load_ext_plugins_from_file()
 -- Add plugin menu
 m_add_plugin = mclass_scene_graph_command.add_slot("Add", function(args) 
 
-   add_ext_plugin(args.name, args.program, args.interpreter) 
+   -- add_ext_plugin(args.name, args.program, args.interpreter) 
+   local program_name = FileSystem.base_name(args.program, false)
+
+   add_ext_plugin(string.clean(program_name), args.program, args.interpreter) 
    
    m_list_plugin_2_config = mclass_scene_graph_command.add_slot(args.name, modify_plugin(args.name))
 
@@ -664,12 +683,4 @@ m_clean_plugin.create_arg_custom_attribute('sure','help','Type yes if you are su
 m_clean_plugin.create_custom_attribute('menu','/Externals/Manage add ons')
 
 
--- -- -- Create a new enum type
--- m_attr_enum = gom.meta_types.OGF.MetaEnum.create('Attr')
--- local str_attributes = scene_graph.current().scalar_attributes
--- local str_attributes_list = string.split(';', str_attributes)
--- local t_attr_enum = to_table(str_attributes_list)
--- -- Declare enum values
--- m_attr_enum.add_values(t_attr_enum)
--- -- Make new enum visible from GOM type system
--- gom.bind_meta_type(m_attr_enum)
+
