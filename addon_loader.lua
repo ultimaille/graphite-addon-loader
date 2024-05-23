@@ -324,6 +324,9 @@ function exec_bin(args)
    local wd = FileSystem.get_current_working_directory()
    FileSystem.set_current_working_directory(sandbox_dir)
 
+   -- Create output directory
+   FileSystem.create_directory(output_model_path)
+
    local str_args = format_args(input_model_path, output_model_path, ext_plugin.parameters, args)
    local cmd = ext_plugin.call_cmd .. " " .. str_args
    
