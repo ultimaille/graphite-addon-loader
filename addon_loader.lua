@@ -271,10 +271,15 @@ function load_outputs(sandbox_dir)
    local models = concat_table(obj_models, geogram_models)
    local models = concat_table(models, mesh_models)
 
+   local prev_current_object = scene_graph.current_object
+
    for _, model in pairs(models) do 
       print('Load: '..model)
       scene_graph.load_object(model)
    end
+   
+   scene_graph.current_object = prev_current_object
+      
 
    -- -- Camera go back to home
    -- graphite_main_window.home()
