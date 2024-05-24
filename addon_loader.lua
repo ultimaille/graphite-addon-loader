@@ -30,19 +30,19 @@ function search(dir, pattern)
    return files
 end
 
-function os.capture(cmd, raw)
-   local f = assert(io.popen(cmd, 'r'))
-   local s = assert(f:read('*a'))
-   f:close()
-   if raw then return s end
-   s = string.gsub(s, '^%s+', '')
-   s = string.gsub(s, '%s+$', '')
-   s = string.gsub(s, '[\n\r]+', ' ')
-   return s
-end
+-- function os.capture(cmd, raw)
+--    local f = assert(io.popen(cmd, 'r'))
+--    local s = assert(f:read('*a'))
+--    f:close()
+--    if raw then return s end
+--    s = string.gsub(s, '^%s+', '')
+--    s = string.gsub(s, '%s+$', '')
+--    s = string.gsub(s, '[\n\r]+', ' ')
+--    return s
+-- end
 
-function os.capture2(name, cmd)
-   local param_file = project_root .. "/" .. name .. "_params.epf"
+function os.capture2(name, cmd, redirect_file_suffix)
+   local param_file = project_root .. "/" .. name .. redirect_file_suffix
    -- Execute and redirect stdout out into a file (cannot use popen, not crossplatform !)
    os.execute(cmd .. " > " .. param_file)
    -- Return param file name
@@ -65,6 +65,17 @@ end
 -- Check whether a string is empty or not
 function string.empty(str)
    return str == nil or str == ""
+end
+
+function string.join(lines, c)
+   if not lines then 
+      return nil 
+   end
+   local s = ""
+   for line in lines do 
+      s = line .. c
+   end 
+   return string.sub(s, 0, string.len(s) - string.len(c))
 end
 
 -- Check whether a name is valid
@@ -397,6 +408,10 @@ function draw_menu(mclass, ext_plugin)
    
    -- And another command, also created in the 'Foobars' submenu
    m = mclass.add_slot(ext_plugin.name, exec_bin)
+   -- Add add-on help as tooltip text
+   if not string.empty(ext_plugin.help) then 
+      m.create_custom_attribute('help', ext_plugin.help)
+   end
    
    for _, param in pairs(filtered_parameters) do
 
@@ -535,15 +550,20 @@ function load_ext_plugin(name, program, interpreter)
    end
    call_cmd = call_cmd .. program
 
-   local param_file = os.capture2(clean_program_name, call_cmd .. " --show-params")
+   -- Call program to get its parameters
+   local param_file = os.capture2(clean_program_name, call_cmd .. " --show-params", "_params.epf")
+   -- Call program to get its help string
+   local help_file = os.capture2(clean_program_name, call_cmd .. " -h", "_help.epf")
 
    if not FileSystem.is_file(param_file) then 
       return nil
    end
 
    local lines = io.lines(param_file)
-   
    local parameters = parameters_from_lines(lines)
+
+   local lines = io.lines(help_file)
+   local help = string.join(lines, '\n')
    
    -- Create a new plugin object
    local plug_ext = {
@@ -551,7 +571,8 @@ function load_ext_plugin(name, program, interpreter)
       call_cmd = call_cmd,
       program = program,
       interpreter = interpreter,
-      parameters = parameters
+      parameters = parameters,
+      help = help
    }
  
    -- Keep plugin object in a associative map
