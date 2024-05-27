@@ -11,6 +11,7 @@ local project_root = gom.get_environment_value("PROJECT_ROOT")
 -- Utils                     ---
 --------------------------------
 
+-- Recursively search in directory files that match with the pattern 
 function search(dir, pattern)
    local files = {}
 
@@ -30,23 +31,12 @@ function search(dir, pattern)
    return files
 end
 
--- function os.capture(cmd, raw)
---    local f = assert(io.popen(cmd, 'r'))
---    local s = assert(f:read('*a'))
---    f:close()
---    if raw then return s end
---    s = string.gsub(s, '^%s+', '')
---    s = string.gsub(s, '%s+$', '')
---    s = string.gsub(s, '[\n\r]+', ' ')
---    return s
--- end
-
 function os.capture2(name, cmd, redirect_file_suffix)
-   local param_file = project_root .. "/" .. name .. redirect_file_suffix
+   local out_file = project_root .. "/" .. name .. redirect_file_suffix
    -- Execute and redirect stdout out into a file (cannot use popen, not crossplatform !)
-   os.execute(cmd .. " > " .. param_file)
+   os.execute(cmd .. " > " .. out_file)
    -- Return param file name
-   return param_file
+   return out_file
 end
 
 function to_table(it)
@@ -67,6 +57,7 @@ function string.empty(str)
    return str == nil or str == ""
 end
 
+-- Join strings with a given character
 function string.join(lines, c)
    if not lines then 
       return nil 
@@ -114,6 +105,7 @@ end
 -- Graphite utils            ---
 --------------------------------
 
+-- Get attribute data of a mesh
 function get_attributes_data(object)
    local str_attrs = string.split(object.attributes, ';')
 
@@ -154,6 +146,7 @@ local ext_plugins = {}
 -- Serialization/Format      ---
 --------------------------------
 
+-- Get structured parameters object by parsing lines
 function parameters_from_lines(lines)
    local parameters = {}
    
@@ -179,6 +172,7 @@ function parameters_from_lines(lines)
    return parameters
 end
 
+-- Check arg value is well formed and well typed
 function check_arg(param, val)
 
    local success = true 
@@ -218,6 +212,7 @@ function check_arg(param, val)
    return success
 end
 
+-- Check arg values are well formed and well typed
 function check_args(params, args)
    
    for _, param in pairs(params) do 
@@ -285,6 +280,7 @@ function load_outputs(sandbox_dir)
    -- graphite_main_window.home()
 end
 
+-- Remove sandbox dir if empty
 function cleanup_sandbox(sandbox_dir)
    local entries = FileSystem.get_directory_entries(sandbox_dir)
    if table_count(entries) == 0 then 
@@ -389,17 +385,6 @@ t_attr_reverse_map['OGF::Numeric::int32'] = 'int'
 t_attr_reverse_map['OGF::Numeric::uint32'] = 'uint'
 t_attr_reverse_map['OGF::Numeric::uint8'] = 'bool'
 
--- -- -- -- Create a new enum type
--- m_attr_enum = gom.meta_types.OGF.MetaEnum.create('Yop')
--- -- local str_attributes = scene_graph.current().scalar_attributes
--- -- local str_attributes_list = string.split(';', str_attributes)
--- -- local t_attr_enum = to_table(str_attributes_list)
--- -- -- Declare enum values
--- m_attr_enum.add_values({a = "a", b = "b"})
--- -- -- Make new enum visible from GOM type system
--- gom.bind_meta_type(m_attr_enum)
-
-
 function draw_menu(mclass, ext_plugin)
 
    local parameters = ext_plugin.parameters   
@@ -471,18 +456,18 @@ end
 
 -- We are going to create a subclass of OGF::MeshGrobCommands,
 -- let us first get the metaclass associated with OGF::MeshGrobCommands
-superclass = gom.meta_types.OGF.MeshGrobCommands 
+mclass_mesh_grob_superclass = gom.meta_types.OGF.MeshGrobCommands 
 
 -- Create our subclass, that we name OGF::MeshGrobCustomCommands
 -- By default, our commands will land in a new menu 'Custom'
 -- (name your class OGF::MeshGrobZorglubCommands if you want a 'Zorglub'
 -- menu, or use custom attributes, see below).
-mclass = superclass.create_subclass('OGF::LuaGrobCustomCommands')
+mclass_mesh_grob_command = mclass_mesh_grob_superclass.create_subclass('OGF::LuaGrobCustomCommands')
 
 -- Create a constructor for our new class.
 -- For Commands classes, we just create the default constructor
 -- (one can also create constructors with arguments, but we do not need that here)
-mclass.add_constructor()
+mclass_mesh_grob_command.add_constructor()
 
 mclass_scene_graph_command_superclass = gom.meta_types.OGF.SceneGraphCommands
 mclass_scene_graph_command = mclass_scene_graph_command_superclass.create_subclass('OGF::SceneGraphExternalCommands')
@@ -492,13 +477,13 @@ mclass_scene_graph_command.add_constructor()
 -- Draw menus                ---
 --------------------------------
 
--- Draw each menu for each plugin found
-for _, ext_plugin in pairs(ext_plugins) do
-   draw_menu(mclass, ext_plugin)
-end
+-- -- Draw each menu for each plugin found
+-- for _, ext_plugin in pairs(ext_plugins) do
+--    draw_menu(mclass, ext_plugin)
+-- end
 
 -- Make our new Commands visible from MeshGrob
-scene_graph.register_grob_commands(gom.meta_types.OGF.MeshGrob, mclass)
+scene_graph.register_grob_commands(gom.meta_types.OGF.MeshGrob, mclass_mesh_grob_command)
 
 
 local ext_plugin_list_file = project_root .. "/ext_addon_list.txt"
@@ -518,8 +503,20 @@ function load_ext_plugins_from_file()
       for _, x in pairs(plug_config) do 
 
          local plug_ext = load_ext_plugin(x.name, x.program, x.interpreter)
+
+         -- Choose the menu to add the add-on
+         -- If add-on expect a mesh as input it goes to MeshGrob menu, else to SceneGraph menu
+         -- Contrary to SceneGraph menu, MeshGrob menu is only visible when a mesh is loaded
+         local menu_class = nil
+         if plug_ext.is_mesh_expected then 
+            menu_class = mclass_mesh_grob_command 
+         else 
+            menu_class = mclass_scene_graph_command
+         end
+
          -- Draw menu
-         draw_menu(mclass, plug_ext)
+         draw_menu(menu_class, plug_ext)
+
          -- Print
          print('External add-on ' .. x.name .. ' was loaded.')
          print(' - Program: ' .. x.program)
@@ -570,6 +567,16 @@ function load_ext_plugin(name, program, interpreter)
    local lines = io.lines(help_file)
    local help = string.join(lines, '\n')
    
+   -- Search for an input parameter
+   local is_mesh_expected = false
+   for k, p in pairs(parameters) do 
+      if p.type == 'input' then 
+         is_mesh_expected = true 
+      end
+   end
+
+
+
    -- Create a new plugin object
    local plug_ext = {
       name = clean_program_name,
@@ -577,7 +584,8 @@ function load_ext_plugin(name, program, interpreter)
       program = program,
       interpreter = interpreter,
       parameters = parameters,
-      help = help
+      help = help,
+      is_mesh_expected = is_mesh_expected
    }
  
    -- Keep plugin object in a associative map
@@ -603,7 +611,7 @@ function add_ext_plugin(program, interpreter, update)
       end
 
       -- Draw menu
-      if not update then draw_menu(mclass, plug_ext) end
+      if not update then draw_menu(mclass_mesh_grob_command, plug_ext) end
       -- Overwrite file
       overwrite_ext_plugin_list_file()
 
@@ -684,9 +692,6 @@ m_add_plugin.create_custom_attribute('menu','/Externals/Manage add ons')
 for _, x in pairs(plug_list) do 
    m_list_plugin_2_config = mclass_scene_graph_command.add_slot(x.name, modify_plugin(x.name))
 
-   -- m_list_plugin_2_config.add_arg("name", gom.meta_types.std.string, x.name)
-   -- m_list_plugin_2_config.create_arg_custom_attribute('name','help','Choose a plugin name')
-
    m_list_plugin_2_config.add_arg("program", gom.meta_types.OGF.FileName, x.program)
    m_list_plugin_2_config.create_arg_custom_attribute('program', 'help', 'Program to call (e.g: path to an executable / script)')
    
@@ -708,6 +713,3 @@ m_clean_plugin = mclass_scene_graph_command.add_slot("Clean_list", function(args
 m_clean_plugin.add_arg("sure", gom.meta_types.std.string, "no")
 m_clean_plugin.create_arg_custom_attribute('sure','help','Type yes if you are sure')
 m_clean_plugin.create_custom_attribute('menu','/Externals/Manage add ons')
-
-
-
