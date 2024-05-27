@@ -432,28 +432,34 @@ function draw_menu(ext_plugin)
 
          -- Add description as tooltip text
          m.create_arg_custom_attribute(clean_param_name, 'help', param.description)
+
+
+         -- # Attribute management !
+
+         -- If parameter type is an attribute type, add attribute combobox to UI
+         if is_param_is_type_attribute(param.type) then 
+            m.create_arg_custom_attribute(clean_param_name, 'handler','combo_box')
+            -- m.create_arg_custom_attribute(clean_param_name, 'values', '$grob.attributes')
+            -- Filter by attribute type / primitive
+            primitive, type, dim = table.unpack(to_table(string.split(param.type, '.')))
+            m.create_arg_custom_attribute(clean_param_name, 'values', '$grob.list_attributes("' .. primitive .. '","' .. t_attr_map[type] .. '","' .. tostring(dim) .. '")')
+         end
+         
+         -- # Enum management !
+
+         -- Possible values is set ! So should display a combo box with all choices
+         if (not (string.empty(param.possible_values) or param.possible_values == 'undefined')) then 
+            local values = param.possible_values:gsub(",", ";")
+            m.create_arg_custom_attribute(clean_param_name, 'handler','combo_box')
+            m.create_arg_custom_attribute(clean_param_name, 'values', values)
+         end
+
       end 
 
 
 
-
-      -- If parameter type is an attribute type, add attribute combobox to UI
-      if is_param_is_type_attribute(param.type) then 
-         m.create_arg_custom_attribute(clean_param_name, 'handler','combo_box')
-         -- m.create_arg_custom_attribute(clean_param_name, 'values', '$grob.attributes')
-         -- Filter by attribute type / primitive
-         primitive, type, dim = table.unpack(to_table(string.split(param.type, '.')))
-         m.create_arg_custom_attribute(clean_param_name, 'values', '$grob.list_attributes("' .. primitive .. '","' .. t_attr_map[type] .. '","' .. tostring(dim) .. '")')
-      end
-
-      -- Possible values is set ! So should display a combo box with all choices
-      if (not (string.empty(param.possible_values) or param.possible_values == 'undefined')) then 
-         local values = param.possible_values:gsub(",", ";")
-         m.create_arg_custom_attribute(clean_param_name, 'handler','combo_box')
-         m.create_arg_custom_attribute(clean_param_name, 'values', values)
-      end
-
    end 
+   
 
    m.create_custom_attribute('menu','/Externals')
 
