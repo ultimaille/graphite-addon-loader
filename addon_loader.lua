@@ -275,9 +275,6 @@ function load_outputs(sandbox_dir)
    
    scene_graph.current_object = prev_current_object
       
-
-   -- -- Camera go back to home
-   -- graphite_main_window.home()
 end
 
 -- Remove sandbox dir if empty
@@ -385,7 +382,17 @@ t_attr_reverse_map['OGF::Numeric::int32'] = 'int'
 t_attr_reverse_map['OGF::Numeric::uint32'] = 'uint'
 t_attr_reverse_map['OGF::Numeric::uint8'] = 'bool'
 
-function draw_menu(mclass, ext_plugin)
+function draw_menu(ext_plugin)
+
+   -- Choose the menu to add the add-on
+   -- If add-on expect a mesh as input it goes to MeshGrob menu, else to SceneGraph menu
+   -- Contrary to SceneGraph menu, MeshGrob menu is only visible when a mesh is loaded
+   local mclass = nil
+   if ext_plugin.is_mesh_expected then 
+      mclass = mclass_mesh_grob_command 
+   else 
+      mclass = mclass_scene_graph_command
+   end
 
    local parameters = ext_plugin.parameters   
    -- filter parameters to exclude not visible
@@ -477,11 +484,6 @@ mclass_scene_graph_command.add_constructor()
 -- Draw menus                ---
 --------------------------------
 
--- -- Draw each menu for each plugin found
--- for _, ext_plugin in pairs(ext_plugins) do
---    draw_menu(mclass, ext_plugin)
--- end
-
 -- Make our new Commands visible from MeshGrob
 scene_graph.register_grob_commands(gom.meta_types.OGF.MeshGrob, mclass_mesh_grob_command)
 
@@ -495,42 +497,39 @@ function load_ext_plugins_from_file()
 
    -- Check if there is a file that list external plugins
    -- If doesn't, nothing to load
-   if FileSystem.is_file(ext_plugin_list_file) then 
+   if not FileSystem.is_file(ext_plugin_list_file) then 
+      return plug_list
+   end 
 
-      local plug_config = parameters_from_lines(io.lines(ext_plugin_list_file))
-      
+   local plug_config = parameters_from_lines(io.lines(ext_plugin_list_file))
+   
 
-      for _, x in pairs(plug_config) do 
+   for _, x in pairs(plug_config) do 
 
-         local plug_ext = load_ext_plugin(x.name, x.program, x.interpreter)
+      local plug_ext = load_ext_plugin(x.name, x.program, x.interpreter)
 
-         -- Choose the menu to add the add-on
-         -- If add-on expect a mesh as input it goes to MeshGrob menu, else to SceneGraph menu
-         -- Contrary to SceneGraph menu, MeshGrob menu is only visible when a mesh is loaded
-         local menu_class = nil
-         if plug_ext.is_mesh_expected then 
-            menu_class = mclass_mesh_grob_command 
-         else 
-            menu_class = mclass_scene_graph_command
-         end
-
-         -- Draw menu
-         draw_menu(menu_class, plug_ext)
-
-         -- Print
-         print('External add-on ' .. x.name .. ' was loaded.')
-         print(' - Program: ' .. x.program)
-         if not string.empty(x.interpreter) then
-            print(' - Interpreter: ' .. x.interpreter)
-         end
-         if not string.empty(x.mode) then 
-            print(' - Mode: ' .. x.mode)
-         end 
-
-         table.insert(plug_list, x)
+      if not plug_ext then 
+         print("Unable to load " .. x.program .. " as an add-on.")
+         return
       end
 
-   end 
+      -- Draw menu
+      draw_menu(plug_ext)
+
+      -- Print
+      print('External add-on ' .. x.name .. ' was loaded.')
+      print(' - Program: ' .. x.program)
+      if not string.empty(x.interpreter) then
+         print(' - Interpreter: ' .. x.interpreter)
+      end
+      if not string.empty(x.mode) then 
+         print(' - Mode: ' .. x.mode)
+      end 
+
+      table.insert(plug_list, x)
+   end
+
+
 
    return plug_list
 end
@@ -611,7 +610,7 @@ function add_ext_plugin(program, interpreter, update)
       end
 
       -- Draw menu
-      if not update then draw_menu(mclass_mesh_grob_command, plug_ext) end
+      if not update then draw_menu(plug_ext) end
       -- Overwrite file
       overwrite_ext_plugin_list_file()
 
