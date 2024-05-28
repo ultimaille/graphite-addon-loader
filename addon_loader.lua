@@ -232,14 +232,21 @@ function map_param(input_path, output_model_path, param, val)
       str_val = ""
    end 
 
+   -- Special parameters
    if param.type == 'input' then
       str_val = input_path
    elseif param.name == 'result_path' then 
       str_val = output_model_path
+   -- Attribute parameters
    elseif is_param_is_type_attribute(param.type) then 
       str_val = get_attribute_shortname(val)
    else
-      str_val = tostring(val)
+      -- Set value or default value
+      if val then 
+         str_val = tostring(val)
+      else 
+         str_val = param.value
+      end
    end
 
    return param.name .. "=" .. str_val
