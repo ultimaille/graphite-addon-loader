@@ -337,8 +337,8 @@ function exec_bin(args)
    local output_model_path = sandbox_dir .. "/output"
 
    -- exec bin in sandbox
-   local wd = FileSystem.get_current_working_directory()
-   FileSystem.set_current_working_directory(sandbox_dir)
+   -- local wd = FileSystem.get_current_working_directory()
+   -- FileSystem.set_current_working_directory(sandbox_dir)
 
    -- Create output directory
    FileSystem.create_directory(output_model_path)
@@ -351,7 +351,7 @@ function exec_bin(args)
    os.execute(cmd)
 
    -- Reset working dir
-   FileSystem.set_current_working_directory(wd)
+   -- FileSystem.set_current_working_directory(wd)
 
    -- Clean up model used as input
    FileSystem.delete_file(input_model_path)
