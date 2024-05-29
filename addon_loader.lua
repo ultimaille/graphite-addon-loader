@@ -242,7 +242,7 @@ function map_param(input_path, output_model_path, param, val)
       str_val = get_attribute_shortname(val)
    else
       -- Set value or default value
-      if val then 
+      if val ~= nil then 
          str_val = tostring(val)
       else 
          str_val = param.value
