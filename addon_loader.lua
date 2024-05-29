@@ -64,7 +64,7 @@ function string.join(lines, c)
    end
    local s = ""
    for line in lines do 
-      s = line .. c
+      s = s .. line .. c
    end 
    return string.sub(s, 0, string.len(s) - string.len(c))
 end
