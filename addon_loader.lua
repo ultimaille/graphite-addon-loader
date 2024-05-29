@@ -599,6 +599,10 @@ function load_ext_plugin(name, program, interpreter)
       help = help,
       is_mesh_expected = is_mesh_expected
    }
+
+   -- Clean up EPF files
+   FileSystem.delete_file(param_file)
+   FileSystem.delete_file(help_file)
  
    -- Keep plugin object in a associative map
    ext_plugins[plug_ext.name] = plug_ext
