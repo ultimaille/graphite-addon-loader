@@ -353,9 +353,6 @@ function exec_bin(args)
    -- Reset working dir
    -- FileSystem.set_current_working_directory(wd)
 
-   -- Clean up model used as input
-   FileSystem.delete_file(input_model_path)
-
    -- Load models found into sandbox
    object.selections = {}
    load_outputs(output_model_path)
