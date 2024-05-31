@@ -31,16 +31,8 @@ function search(dir, pattern)
    return files
 end
 
-function os.capture2(name, cmd, redirect_file_suffix)
-   local out_file = project_root .. "/" .. name .. redirect_file_suffix
-   -- Execute and redirect stdout out into a file (cannot use popen, not crossplatform !)
-   os.execute(cmd .. " > " .. out_file)
-   -- Return param file name
-   return out_file
-end
-
 function to_table(it)
-   local t={}
+   local t = {}
    for x in it do 
       table.insert(t, x)
    end 
@@ -67,17 +59,6 @@ function string.join(lines, c)
       s = s .. line .. c
    end 
    return string.sub(s, 0, string.len(s) - string.len(c))
-end
-
--- Check whether a name is valid
-function is_name_valid(name)
-   for i = 1, #name do 
-      local c = name:sub(i,i)
-      if c == "-" or c == " " or c == "/" or c == "." or c == "\\" then 
-         return false
-      end
-   end
-   return true
 end
 
 -- Count number of element in a table
@@ -138,9 +119,6 @@ end
 --------------------------------
 -- Global                    ---
 --------------------------------
-
--- Load external processes
-local ext_plugins = {}
 
 --------------------------------
 -- Serialization/Format      ---
@@ -289,76 +267,82 @@ function cleanup_sandbox(sandbox_dir)
    local entries = FileSystem.get_directory_entries(sandbox_dir)
    if table_count(entries) == 0 then 
       FileSystem.delete_directory(sandbox_dir)
-      print("Sandbox '"..sandbox_dir.."' is empty, cleanup...")
+      print("Sandbox '" .. sandbox_dir .. "' is empty, cleanup...")
    end
 end
 
 -- Execute program
-function exec_bin(args)
-   print('args='..tostring(args))
-   
-   -- Check whether a model selected
-   if scene_graph.current() == nil then
-      print('No object selected.')
-      return
-   end
+function exec_addon(addon)
 
-   local object = scene_graph.current()
+   -- Curryfied
+   local exec = function(args)
+      print('args='..tostring(args))
+      
+      -- Check whether a model selected
+      if scene_graph.current() == nil then
+         print('No object selected.')
+         return
+      end
 
-   -- Get plugin to execute
-   local plug_name = args['method']
-   ext_plugin = ext_plugins[plug_name]
-   print("Add-on: "..ext_plugin.name)
+      local object = scene_graph.current()
 
-   -- Check arguments
-   if not check_args(ext_plugin.parameters, args) then 
-      print("Abort add-on call.")
-      return
-   end
+      -- Get plugin to execute
+      local plug_name = args['method']
+      
+      print("Add-on: "..addon.name)
 
-   -- Create a sandbox
-   -- Get document root
-   -- TODO replace by tmp dir
-   local project_root = FileSystem.documents_directory()
-   local sandbox_dir = project_root .. "/" .. "sandbox_" .. os.clock()
-   FileSystem.create_directory(sandbox_dir)
-   print("Sandbox dir created: "..sandbox_dir)
+      -- Check arguments
+      if not check_args(addon.parameters, args) then 
+         print("Abort add-on call.")
+         return
+      end
 
-   -- Save & Copy current model (in order to keep last changes that occurred to the model !)
-   -- TODO UUID here !
-   local file_extension = FileSystem.extension(object.filename)
-   print(file_extension)
-   local input_model_path = sandbox_dir .. '/' .. object.name .. "_" .. os.clock() .. "." .. file_extension
-   if not object.save(input_model_path) then
-      print('An error occurred when transfering the current model to add-on.')
-      return
-   end
+      -- Create a sandbox
+      -- Get document root
+      -- TODO replace by tmp dir
+      local project_root = FileSystem.documents_directory()
+      local sandbox_dir = project_root .. "/" .. "sandbox_" .. os.clock()
+      FileSystem.create_directory(sandbox_dir)
+      print("Sandbox dir created: "..sandbox_dir)
 
-   local output_model_path = sandbox_dir .. "/output"
+      -- Save & Copy current model (in order to keep last changes that occurred to the model !)
+      -- TODO UUID here !
+      local file_extension = FileSystem.extension(object.filename)
+      print(file_extension)
+      local input_model_path = sandbox_dir .. '/' .. object.name .. "_" .. os.clock() .. "." .. file_extension
+      if not object.save(input_model_path) then
+         print('An error occurred when transfering the current model to add-on.')
+         return
+      end
 
-   -- exec bin in sandbox
-   -- local wd = FileSystem.get_current_working_directory()
-   -- FileSystem.set_current_working_directory(sandbox_dir)
+      local output_model_path = sandbox_dir .. "/output"
 
-   -- Create output directory
-   FileSystem.create_directory(output_model_path)
+      -- exec bin in sandbox
+      -- local wd = FileSystem.get_current_working_directory()
+      -- FileSystem.set_current_working_directory(sandbox_dir)
 
-   local str_args = format_args(input_model_path, output_model_path, ext_plugin.parameters, args)
-   local cmd = ext_plugin.call_cmd .. " " .. str_args
-   
-   print('call: ' .. cmd)
-   -- Run command
-   os.execute(cmd)
+      -- Create output directory
+      FileSystem.create_directory(output_model_path)
 
-   -- Reset working dir
-   -- FileSystem.set_current_working_directory(wd)
+      local str_args = format_args(input_model_path, output_model_path, addon.parameters, args)
+      local cmd = addon.path .. " " .. str_args
+      
+      print('call: ' .. cmd)
+      -- Run command
+      os.execute(cmd)
 
-   -- Load models found into sandbox
-   object.selections = {}
-   load_outputs(output_model_path)
+      -- Reset working dir
+      -- FileSystem.set_current_working_directory(wd)
 
-   -- Clean up if empty
-   cleanup_sandbox(sandbox_dir)
+      -- Load models found into sandbox
+      object.selections = {}
+      load_outputs(output_model_path)
+
+      -- Clean up if empty
+      cleanup_sandbox(sandbox_dir)
+   end 
+
+   return exec
 end
 
 -- map table of types to gom types
@@ -386,35 +370,28 @@ t_attr_reverse_map['OGF::Numeric::int32'] = 'int'
 t_attr_reverse_map['OGF::Numeric::uint32'] = 'uint'
 t_attr_reverse_map['OGF::Numeric::uint8'] = 'bool'
 
-function draw_menu(ext_plugin)
+function draw_addon_menu(addon)
 
    -- Choose the menu to add the add-on
    -- If add-on expect a mesh as input it goes to MeshGrob menu, else to SceneGraph menu
    -- Contrary to SceneGraph menu, MeshGrob menu is only visible when a mesh is loaded
    local mclass = nil
-   if ext_plugin.is_mesh_expected then 
+   if addon.is_mesh_expected then 
       mclass = mclass_mesh_grob_command 
    else 
       mclass = mclass_scene_graph_command
    end
 
-   local parameters = ext_plugin.parameters   
-   -- filter parameters to exclude not visible
-   local filtered_parameters = {}
-   for i, param in pairs(parameters) do 
-      if (param.visible == nil or param.visible == 'true') then 
-         table.insert(filtered_parameters, param)
-      end
-   end
+   local parameters = addon.parameters   
    
    -- And another command, also created in the 'Foobars' submenu
-   m = mclass.add_slot(ext_plugin.name, exec_bin)
+   m = mclass.add_slot(addon.name, exec_addon(addon))
    -- Add add-on help as tooltip text
-   if not string.empty(ext_plugin.help) then 
-      m.create_custom_attribute('help', ext_plugin.help)
+   if not string.empty(addon.help) then 
+      m.create_custom_attribute('help', addon.help)
    end
    
-   for _, param in pairs(filtered_parameters) do
+   for _, param in pairs(parameters) do
 
       local clean_param_name = string.clean(param.name)
 
@@ -471,6 +448,12 @@ function draw_menu(ext_plugin)
    
 end
 
+function draw_addons_menus(addons)
+   for _, addon in pairs(addons) do 
+      draw_addon_menu(addon)
+   end
+end
+
 -- We are going to create a subclass of OGF::MeshGrobCommands,
 -- let us first get the metaclass associated with OGF::MeshGrobCommands
 mclass_mesh_grob_superclass = gom.meta_types.OGF.MeshGrobCommands 
@@ -498,231 +481,168 @@ mclass_scene_graph_command.add_constructor()
 scene_graph.register_grob_commands(gom.meta_types.OGF.MeshGrob, mclass_mesh_grob_command)
 
 
-local ext_plugin_list_file = project_root .. "/ext_addon_list.txt"
+local addon_loader_file = project_root .. "/addon_loader.txt"
 
--- Load all external plugins from the ext_plugin_list.txt file
-function load_ext_plugins_from_file()
-
-   local plug_list = {}
-
-   -- Check if there is a file that list external plugins
-   -- If doesn't, nothing to load
-   if not FileSystem.is_file(ext_plugin_list_file) then 
-      return plug_list
-   end 
-
-   local plug_config = parameters_from_lines(io.lines(ext_plugin_list_file))
-   
-
-   for _, x in pairs(plug_config) do 
-
-      local plug_ext = load_ext_plugin(x.name, x.program, x.interpreter)
-
-      if not plug_ext then 
-         print("Unable to load " .. x.program .. " as an add-on.")
-         return
-      end
-
-      -- Draw menu
-      draw_menu(plug_ext)
-
-      -- Print
-      print('External add-on ' .. x.name .. ' was loaded.')
-      print(' - Program: ' .. x.program)
-      if not string.empty(x.interpreter) then
-         print(' - Interpreter: ' .. x.interpreter)
-      end
-      if not string.empty(x.mode) then 
-         print(' - Mode: ' .. x.mode)
-      end 
-
-      table.insert(plug_list, x)
-   end
-
-
-
-   return plug_list
-end
-
-function list_ext_plugins()
-   for _, plug_ext in pairs(ext_plugins) do 
-      print(plug_ext.name .. "," .. plug_ext.call_cmd)
-   end
-end
-
-function load_ext_plugin(name, program, interpreter)
-   -- Clean up name, if needed
-   local clean_program_name = string.clean(name)
-
-   -- Call bin to get parameters
-   local call_cmd = ""
-   if interpreter then 
-      call_cmd = call_cmd .. interpreter .. " "
-   end
-   call_cmd = call_cmd .. program
-
-   -- Call program to get its parameters
-   local param_file = os.capture2(clean_program_name, call_cmd .. " --show-params", "_params.epf")
-   -- Call program to get its help string
-   local help_file = os.capture2(clean_program_name, call_cmd .. " -h", "_help.epf")
-
-   if not FileSystem.is_file(param_file) then 
-      return nil
-   end
-
-   local lines = io.lines(param_file)
-   local parameters = parameters_from_lines(lines)
-
-   local lines = io.lines(help_file)
-   local help = string.join(lines, '\n')
-   
-   -- Search for an input parameter
-   local is_mesh_expected = false
-   for k, p in pairs(parameters) do 
-      if p.type == 'input' then 
-         is_mesh_expected = true 
-      end
-   end
-
-
-
-   -- Create a new plugin object
-   local plug_ext = {
-      name = clean_program_name,
-      call_cmd = call_cmd,
-      program = program,
-      interpreter = interpreter,
-      parameters = parameters,
-      help = help,
-      is_mesh_expected = is_mesh_expected
-   }
-
-   -- Clean up EPF files
-   FileSystem.delete_file(param_file)
-   FileSystem.delete_file(help_file)
- 
-   -- Keep plugin object in a associative map
-   ext_plugins[plug_ext.name] = plug_ext
-   
-   return plug_ext
-end
-
-function add_ext_plugin(program, interpreter, update)
-
-   local program_name = FileSystem.base_name(program, false)
-   local clean_program_name = string.clean(program_name)
-
-   if program == nil or program == "" then 
-      print("Program shouldn't be empty.")
-   else
-      -- Try to load plugin
-      local plug_ext = load_ext_plugin(clean_program_name, program, interpreter)
-
-      if not plug_ext then 
-         print("Unable to load " .. program .. " as an add-on.")
-         return 
-      end
-
-      -- Draw menu
-      if not update then draw_menu(plug_ext) end
-      -- Overwrite file
-      overwrite_ext_plugin_list_file()
-
-      print(clean_program_name .. " was added to external add-ons list. " .. ext_plugin_list_file)
-   end
-
-   return clean_program_name
-end
-
-function overwrite_ext_plugin_list_file()
-   -- Hard overwrite plugin list file
-   local f = io.open(ext_plugin_list_file, "w")
-   for _, plug_ext in pairs(ext_plugins) do
-      
-      local line = "name="..plug_ext.name..";program="..plug_ext.program..";mode="..tostring(false)
-      if not string.empty(plug_ext.interpreter) then 
-         line = line .. ";interpreter=" .. plug_ext.interpreter
-      end
-
-      f:write(line.."\n")
-   end
+function save_addon_directory()
+   local f = io.open(addon_loader_file, "w")
+   f:write(args.add_ons_directory)
    f:close()
 end
 
-function clean_ext_plugin()
-   print("Clean up external add-ons list file '" .. ext_plugin_list_file .. "'")
-   FileSystem.delete_file(ext_plugin_list_file)
+function load_addon_directory()
+
+   if not FileSystem.is_file(addon_loader_file) then 
+      return ""
+   end 
+
+   local f = io.open(addon_loader_file, "r")
+   local data = f:read("*all")
+   f:close()
+   return data
 end
 
-function remove_ext_plugin(name)
-   ext_plugins[name] = nil
-   overwrite_ext_plugin_list_file()
-   print(name .. " was removed from external add-on list.")
+function search_addons(directory)
+   return search(directory, ".*_addon[%.exe]?$")
 end
 
-function modify_plugin(name, args)
-   -- Function is curryfied
-   local modify_plugin_exec = function(args)
-      add_ext_plugin(args.program, args.interpreter, true)
+function search_params_files(directory)
+   return search(directory, ".*%.params")
+end
+
+function search_help_files(directory)
+   return search(directory, ".*%.help")
+end
+
+function scan_directory(directory)
+
+   -- Search for addons programs
+   local addons = search_addons(directory)
+
+   for _, addon in pairs(addons) do 
+
+      local param_file = addon .. ".params"
+      local help_file = addon .. ".help"
+      
+      -- Call program to get its parameters
+      -- Call program to get its help string
+      os.execute(addon .. " --show-params > " .. param_file)
+      os.execute(addon .. " -h > " .. help_file)
+
+      -- -- Check params file
+      -- local f = io.open(param_file, "r")
+      -- local data = f:read("*all")
+      -- f:close()
+
+
+      -- FileSystem.delete_file(param_file)
+      -- FileSystem.delete_file(help_file)
    end
-   return modify_plugin_exec
+
+end
+
+function sync(directory)
+   -- Curryfied
+   local sync_f = function(args)
+
+      local param_files = search_params_files(directory)
+      local help_files = search_help_files(directory)
+
+      for _, param_file in pairs(param_files) do 
+         FileSystem.delete_file(param_file)
+      end
+      for _, help_file in pairs(help_files) do 
+         FileSystem.delete_file(help_file)
+      end
+
+      scan_directory(directory)
+      local addons = load_addons(directory)
+      draw_addons_menus(addons)
+
+   end 
+
+   return sync_f
+end
+
+function load_addons(directory)
+
+   local param_files = search_params_files(directory)
+   local help_files = search_help_files(directory)
+
+   local addons = {}
+
+   for _, param_file in pairs(param_files) do 
+      -- read
+      local lines = io.lines(param_file)
+      local parameters = parameters_from_lines(lines)
+   
+      -- Extract addon name
+      local addon_name = FileSystem.base_name(param_file, false)
+      local clean_addon_name = string.clean(addon_name)
+
+      -- Search for an input parameter
+      local is_mesh_expected = false
+      for k, p in pairs(parameters) do 
+         if p.type == 'input' then 
+            is_mesh_expected = true 
+         end
+      end
+
+      -- Create a new addon object
+      local addon = {
+         name = clean_addon_name,
+         path = param_file:gsub(".params", ""),
+         parameters = parameters,
+         help = "",
+         is_mesh_expected = is_mesh_expected
+      }
+
+      -- local lines = io.lines(help_file)
+      -- local help = string.join(lines, '\n')
+
+      -- Keep plugin object in a associative map
+      addons[addon.name] = addon
+   end
+
+   return addons
 end
 
 -- Make our new commands visible from MeshGrob
 scene_graph.register_grob_commands(gom.meta_types.OGF.SceneGraph, mclass_scene_graph_command)
 
--- Load external plugin reading the list file
-local plug_list = load_ext_plugins_from_file()
-
 -- Add menus to manage external plugins
 
 -- Add plugin menu
-m_add_plugin = mclass_scene_graph_command.add_slot("Add", function(args) 
+local m_add_plugin = mclass_scene_graph_command.add_slot("Parameters", function(args) 
 
-   local name = add_ext_plugin(args.program, args.interpreter) 
-   
-   m_list_plugin_2_config = mclass_scene_graph_command.add_slot(name, modify_plugin(name))
+   -- TODO check directory
+   -- if not FileSystem.is_file(args.add_ons_directory) then 
+   --    print(args.add_ons_directory .. " is not a directory. Add-on loader expect to load add-ons from a directory.")
+   --    return
+   -- end 
 
-   m_list_plugin_2_config.add_arg("program", gom.meta_types.OGF.FileName, args.program)
-   m_list_plugin_2_config.create_arg_custom_attribute('program', 'help', 'Program to call (e.g: path to an executable / script)')
-   
-   m_list_plugin_2_config.add_arg("interpreter", gom.meta_types.OGF.FileName, args.interpreter)
-   m_list_plugin_2_config.create_arg_custom_attribute('interpreter', 'help', 'Interpreter used to execute the program (optional, e.g: python3)')
-   
-   m_list_plugin_2_config.create_custom_attribute('menu','/Externals/Manage add ons/Modify')
+   local f = io.open(addon_loader_file, "w")
+   f:write(args.add_ons_directory)
+   f:close()
 
+   -- scan_directory(args.add_ons_directory)
+   -- local addons = load_addons(args.add_ons_directory)
+   -- draw_addons_menus(addons)
+   sync(args.add_ons_directory)()
+   
 end)
 
-m_add_plugin.add_arg("program", gom.meta_types.OGF.FileName, "")
-m_add_plugin.create_arg_custom_attribute('program', 'help', 'Program to call (e.g: path to an executable / script)')
+local addon_directory = load_addon_directory()
 
-m_add_plugin.add_arg("interpreter", gom.meta_types.OGF.FileName, "")
-m_add_plugin.create_arg_custom_attribute('interpreter', 'help', 'Interpreter used to execute the program (optional, e.g: python3)')
+-- Add menu to add addons directory
+m_add_plugin.add_arg("add_ons_directory", gom.meta_types.OGF.FileName, addon_directory)
+m_add_plugin.create_arg_custom_attribute('directory', 'help', 'Add-on search directory')
 
 m_add_plugin.create_custom_attribute('menu','/Externals/Manage add ons')
 
--- Modify plugins menus
-for _, x in pairs(plug_list) do 
-   m_list_plugin_2_config = mclass_scene_graph_command.add_slot(x.name, modify_plugin(x.name))
-
-   m_list_plugin_2_config.add_arg("program", gom.meta_types.OGF.FileName, x.program)
-   m_list_plugin_2_config.create_arg_custom_attribute('program', 'help', 'Program to call (e.g: path to an executable / script)')
-   
-   m_list_plugin_2_config.add_arg("interpreter", gom.meta_types.OGF.FileName, x.interpreter)
-   m_list_plugin_2_config.create_arg_custom_attribute('interpreter', 'help', 'Interpreter used to execute the program (optional, e.g: python3)')
-   
-   m_list_plugin_2_config.create_custom_attribute('menu','/Externals/Manage add ons/Modify')
-   
-end 
-
--- Remove plugin menu
-m_remove_plugin = mclass_scene_graph_command.add_slot("Remove", function(args) remove_ext_plugin(args.name) end)
-m_remove_plugin.add_arg("name", gom.meta_types.std.string, "")
-m_remove_plugin.create_arg_custom_attribute('name','help','Name of the add-on to remove')
-m_remove_plugin.create_custom_attribute('menu','/Externals/Manage add ons')
-
--- Clean list plugin file menu
-m_clean_plugin = mclass_scene_graph_command.add_slot("Clean_list", function(args) if args.sure == "yes" then clean_ext_plugin() end end)
-m_clean_plugin.add_arg("sure", gom.meta_types.std.string, "no")
-m_clean_plugin.create_arg_custom_attribute('sure','help','Type yes if you are sure')
+-- Add menu to sync addons
+m_clean_plugin = mclass_scene_graph_command.add_slot("Sync", sync(addon_directory))
 m_clean_plugin.create_custom_attribute('menu','/Externals/Manage add ons')
+
+-- Load addons
+local addons = load_addons(addon_directory)
+draw_addons_menus(addons)
