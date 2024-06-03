@@ -335,7 +335,7 @@ function exec_addon(addon)
       -- FileSystem.set_current_working_directory(wd)
 
       -- Load models found into sandbox
-      object.selections = {}
+      print('Load outputs...')
       load_outputs(output_model_path)
 
       -- Clean up if empty
@@ -483,16 +483,10 @@ scene_graph.register_grob_commands(gom.meta_types.OGF.MeshGrob, mclass_mesh_grob
 
 local addon_loader_file = project_root .. "/addon_loader.txt"
 
-function save_addon_directory()
-   local f = io.open(addon_loader_file, "w")
-   f:write(args.add_ons_directory)
-   f:close()
-end
-
 function load_addon_directory()
 
    if not FileSystem.is_file(addon_loader_file) then 
-      return ""
+      return project_root
    end 
 
    local f = io.open(addon_loader_file, "r")
@@ -501,8 +495,20 @@ function load_addon_directory()
    return data
 end
 
+function save_addon_directory(directory)
+   add_ons_directory = directory
+   local f = io.open(addon_loader_file, "w")
+   f:write(directory)
+   f:close()
+end
+
+add_ons_directory = load_addon_directory()
+print("addons directory: " .. add_ons_directory)
+
+
 function search_addons(directory)
-   return search(directory, ".*_addon[%.exe]?$")
+   -- return search(directory, ".*_addon[%.exe]?$")
+   return search(directory, ".*_addon.*")
 end
 
 function search_params_files(directory)
@@ -528,45 +534,50 @@ function scan_directory(directory)
       os.execute(addon .. " --show-params > " .. param_file)
       os.execute(addon .. " -h > " .. help_file)
 
-      -- -- Check params file
-      -- local f = io.open(param_file, "r")
-      -- local data = f:read("*all")
-      -- f:close()
+      
+      -- Check params file
+      local f = io.open(param_file, "r")
+      local data = f:read("*all")
+      f:close()
+
+      -- No content ? Not an addon !
+      if string.empty(data) then 
+         FileSystem.delete_file(param_file)
+         FileSystem.delete_file(help_file)
+      end
 
 
-      -- FileSystem.delete_file(param_file)
-      -- FileSystem.delete_file(help_file)
+
    end
 
 end
 
-function sync(directory)
-   -- Curryfied
-   local sync_f = function(args)
+function sync()
 
-      local param_files = search_params_files(directory)
-      local help_files = search_help_files(directory)
+   if not FileSystem.is_directory(add_ons_directory) then 
+      print(add_ons_directory .. " is not a directory. Add-on loader expect to load add-ons from a directory.")
+      return
+   end
 
-      for _, param_file in pairs(param_files) do 
-         FileSystem.delete_file(param_file)
-      end
-      for _, help_file in pairs(help_files) do 
-         FileSystem.delete_file(help_file)
-      end
+   local param_files = search_params_files(add_ons_directory)
+   local help_files = search_help_files(add_ons_directory)
 
-      scan_directory(directory)
-      local addons = load_addons(directory)
-      draw_addons_menus(addons)
+   for _, param_file in pairs(param_files) do 
+      FileSystem.delete_file(param_file)
+   end
+   for _, help_file in pairs(help_files) do 
+      FileSystem.delete_file(help_file)
+   end
 
-   end 
+   scan_directory(add_ons_directory)
+   local addons = load_addons(add_ons_directory)
+   draw_addons_menus(addons)
 
-   return sync_f
 end
 
 function load_addons(directory)
 
    local param_files = search_params_files(directory)
-   local help_files = search_help_files(directory)
 
    local addons = {}
 
@@ -576,7 +587,7 @@ function load_addons(directory)
       local parameters = parameters_from_lines(lines)
    
       -- Extract addon name
-      local addon_name = FileSystem.base_name(param_file, false)
+      local addon_name = FileSystem.base_name(param_file, true)
       local clean_addon_name = string.clean(addon_name)
 
       -- Search for an input parameter
@@ -614,35 +625,20 @@ scene_graph.register_grob_commands(gom.meta_types.OGF.SceneGraph, mclass_scene_g
 -- Add plugin menu
 local m_add_plugin = mclass_scene_graph_command.add_slot("Parameters", function(args) 
 
-   -- TODO check directory
-   -- if not FileSystem.is_file(args.add_ons_directory) then 
-   --    print(args.add_ons_directory .. " is not a directory. Add-on loader expect to load add-ons from a directory.")
-   --    return
-   -- end 
-
-   local f = io.open(addon_loader_file, "w")
-   f:write(args.add_ons_directory)
-   f:close()
-
-   -- scan_directory(args.add_ons_directory)
-   -- local addons = load_addons(args.add_ons_directory)
-   -- draw_addons_menus(addons)
-   sync(args.add_ons_directory)()
+   save_addon_directory(args.add_ons_directory)
+   sync()
    
 end)
 
-local addon_directory = load_addon_directory()
 
 -- Add menu to add addons directory
-m_add_plugin.add_arg("add_ons_directory", gom.meta_types.OGF.FileName, addon_directory)
-m_add_plugin.create_arg_custom_attribute('directory', 'help', 'Add-on search directory')
-
+m_add_plugin.add_arg("add_ons_directory", gom.meta_types.OGF.FileName, add_ons_directory)
 m_add_plugin.create_custom_attribute('menu','/Externals/Manage add ons')
 
 -- Add menu to sync addons
-m_clean_plugin = mclass_scene_graph_command.add_slot("Sync", sync(addon_directory))
+m_clean_plugin = mclass_scene_graph_command.add_slot("Sync", sync)
 m_clean_plugin.create_custom_attribute('menu','/Externals/Manage add ons')
 
 -- Load addons
-local addons = load_addons(addon_directory)
+local addons = load_addons(add_ons_directory)
 draw_addons_menus(addons)
