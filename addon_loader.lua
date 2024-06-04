@@ -636,7 +636,10 @@ m_add_plugin.add_arg("add_ons_directory", gom.meta_types.OGF.FileName, add_ons_d
 m_add_plugin.create_custom_attribute('menu','/Externals/Manage add ons')
 
 -- Add menu to sync addons
-m_clean_plugin = mclass_scene_graph_command.add_slot("Syncronize", sync)
+m_clean_plugin = mclass_scene_graph_command.add_slot("Syncronize_and_Quit", function() 
+   sync() 
+   main.stop()
+end)
 m_clean_plugin.create_custom_attribute('menu','/Externals/Manage add ons')
 
 -- Load addons

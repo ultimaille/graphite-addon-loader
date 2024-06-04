@@ -25,13 +25,13 @@ Graphite will start and execute this script. A menu `Externals` should appear.
 
 ### Add add-ons
 
-You can add add-ons by choosing an add-ons directory via the menu `Externals -> Manage add-ons -> Parameters`. The directory will be scanned and all executables containing `_addon` in their names will be recognized as add-ons.
+You can add many add-ons at once by choosing an add-ons directory via the menu `Externals -> Manage add-ons -> Parameters`. The directory will be scanned (browsing all subdirectories) and all executables containing `_addon` in their names will be recognized as add-ons.
 
 ![](images/manage_addons_parameters.png)
 
 ### Synchronize
 
-You can update your add-ons by via the menu `Externals -> Manage add-ons -> Synchronize`. It's strongly recommended to restart Graphite.
+When you add or remove an add-on or change its interface, you have to synchronize Graphite with these modifications. You can update your add-ons by via the menu `Externals -> Manage add-ons -> Synchronize and Quit`. One this command applied Then, you have to restart Graphite manually.
 
 ## Try with an existing add-on
 
