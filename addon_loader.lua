@@ -210,11 +210,13 @@ function map_param(input_path, output_model_path, param, val)
       str_val = ""
    end 
 
-   -- Special parameters
+   -- Set automatically special parameters
    if param.type == 'input' then
       str_val = input_path
    elseif param.name == 'result_path' then 
       str_val = output_model_path
+   elseif param.name == 'run_from' then 
+      str_val = "graphite"
    -- Attribute parameters
    elseif is_param_is_type_attribute(param.type) then 
       str_val = get_attribute_shortname(val)
