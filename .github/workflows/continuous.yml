@@ -1,0 +1,56 @@
+name: Continuous
+
+on: 
+  push:
+  create:
+    tags:
+
+jobs:
+
+  linux-mac:
+    strategy:
+      matrix:
+        cfg: [{os: ubuntu-latest, cxx: g++-12},
+              {os: ubuntu-latest, cxx: g++-9},
+              {os: macos-latest, cxx: clang++}]
+        config: [Release, Debug]
+
+    runs-on:  ${{ matrix.cfg.os }}
+
+    env:
+      CXX: ${{ matrix.cfg.cxx }}
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    -
+      name: Deploy
+      uses: xresloader/upload-to-github-release@v1
+      with:
+        tags: true
+        draft: false
+        file: addon_loader.lua
+        overwrite: false
+        update_latest_release: true
+        verbose: true
+
+  windows-msvc:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    -
+      name: Deploy
+      uses: xresloader/upload-to-github-release@v1
+      with:
+        tags: true
+        draft: false
+        file: addon_loader.lua
+        overwrite: false
+        update_latest_release: true
+        verbose: true
