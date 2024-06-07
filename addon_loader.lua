@@ -108,7 +108,8 @@ function is_param_is_type_attribute(param_type)
    return (string.starts_with(param_type, 'vertices') 
    or string.starts_with(param_type, 'facets') 
    or string.starts_with(param_type, 'edges')
-   or string.starts_with(param_type, 'cells'))
+   or string.starts_with(param_type, 'cells')
+   or string.starts_with(param_type, 'facet_corners'))
 end
 
 -- Extract attribute name long name (e.g: vertices.my_attr -> my_attr)
@@ -167,7 +168,7 @@ function check_arg(param, val)
       else 
          local actual_attr_data = actual_attrs_data[val]
          local actual_param_type = actual_attr_data['primitive'] .. "." .. actual_attr_data['type'] .. "." .. actual_attr_data['dim']
-         
+
          -- Bruno have renammed vertices.bool type to vertices.OGF::Numeric::uint8 for example between two versions of graphite...
          -- so I have to check the new name and old name to be sure it works
          local actual_param_type_renamed = actual_attr_data['primitive'] .. "." .. t_attr_reverse_map[actual_attr_data['type']] .. "." .. actual_attr_data['dim']
@@ -371,6 +372,13 @@ t_attr_reverse_map['OGF::Numeric::float64'] = 'double'
 t_attr_reverse_map['OGF::Numeric::int32'] = 'int'
 t_attr_reverse_map['OGF::Numeric::uint32'] = 'uint'
 t_attr_reverse_map['OGF::Numeric::uint8'] = 'bool'
+-- Note: for facet corners, type are returned by graphite in normal form 'int', 'double' instead of 'OGF::Numeric::int32', 'OGF::Numeric::float64'
+-- I don't know why this is different between facet_corners attributes and other attributes, should ask to Bruno L.
+-- That's why I added this mapping below
+t_attr_reverse_map['double'] = 'double'
+t_attr_reverse_map['int'] = 'int'
+t_attr_reverse_map['uint'] = 'uint'
+t_attr_reverse_map['bool'] = 'bool'
 
 function draw_addon_menu(addon)
 
@@ -422,7 +430,7 @@ function draw_addon_menu(addon)
          -- If parameter type is an attribute type, add attribute combobox to UI
          if is_param_is_type_attribute(param.type) then 
             m.create_arg_custom_attribute(clean_param_name, 'handler','combo_box')
-            -- m.create_arg_custom_attribute(clean_param_name, 'values', '$grob.attributes')
+
             -- Filter by attribute type / primitive
             primitive, type, dim = table.unpack(to_table(string.split(param.type, '.')))
             m.create_arg_custom_attribute(clean_param_name, 'values', '$grob.list_attributes("' .. primitive .. '","' .. t_attr_map[type] .. '","' .. tostring(dim) .. '")')
