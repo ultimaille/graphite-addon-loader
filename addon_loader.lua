@@ -282,7 +282,7 @@ function exec_addon(addon)
       print('args='..tostring(args))
       
       -- Check whether a model selected
-      if scene_graph.current() == nil then
+      if addon.is_mesh_expected and scene_graph.current() == nil then
          print('No object selected.')
          return
       end
@@ -310,13 +310,16 @@ function exec_addon(addon)
 
       -- Save & Copy current model (in order to keep last changes that occurred to the model !)
       -- TODO UUID here !
-      local file_extension = FileSystem.extension(object.filename)
-      print(file_extension)
-      local input_model_path = sandbox_dir .. '/' .. object.name .. "_" .. os.clock() .. "." .. file_extension
-      if not object.save(input_model_path) then
-         print('An error occurred when transfering the current model to add-on.')
-         return
-      end
+      local input_model_path = ""
+      if addon.is_mesh_expected then 
+         local file_extension = FileSystem.extension(object.filename)
+         print(file_extension)
+         input_model_path = sandbox_dir .. '/' .. object.name .. "_" .. os.clock() .. "." .. file_extension
+         if not object.save(input_model_path) then
+            print('An error occurred when transfering the current model to add-on.')
+            return
+         end
+      end 
 
       local output_model_path = sandbox_dir .. "/output"
 
