@@ -19,19 +19,19 @@ You have to go to `File -> Preferences -> Startup` and add the lua script `addon
 
 ![](images/add_addon_loader_startup.png)
 
-Graphite will start and execute this script. A menu `Externals` should appear.
+Graphite will start and execute this script. A menu `Add-ons` should appear.
 
 ![](images/manage_addons.png)
 
 ### Add add-ons
 
-You can add many add-ons at once by choosing an add-ons directory via the menu `Externals -> Manage add-ons -> Parameters`. The directory will be scanned (browsing all subdirectories) and all executables containing `_addon` in their names will be recognized as add-ons.
+You can add many add-ons at once by choosing an add-ons directory via the menu `Add-ons -> Manage add-ons -> Choose add-ons directory`. The directory will be scanned (browsing all subdirectories) and all executables with extension `.exe` or `.addon` will be recognized as add-ons.
 
 ![](images/manage_addons_parameters.png)
 
 ### Synchronize
 
-When you add or remove an add-on or change its interface, you have to synchronize Graphite with these modifications. You can update your add-ons by via the menu `Externals -> Manage add-ons -> Synchronize and Quit`. One this command applied Then, you have to restart Graphite manually.
+When you add or remove an add-on or change its interface, you have to synchronize Graphite with these modifications. You can update your add-ons by via the menu `Add-ons -> Manage add-ons -> Synchronize and Quit`. One this command applied Then, you have to restart Graphite manually.
 
 ## Try with an existing add-on
 
@@ -49,7 +49,7 @@ _Note: Mac OS binaries are not signed, but we hope that this will be the case in
 
 To turn a program into an add-on recognizable by `addon_loader`, your program must: 
 
- - Have `_addon` in its name, for example: `my_program_addon`
+ - Have `.exe` or `.addon` extension, for example: `my_program.exe`, `my_program.addon`
  - Respond to the `--show-params` argument, returning program parameters as __EPF format__
  - Accept to be called with arguments as the following format: `k1=v2 k2=v2 ... kn=vn` with `ki` the parameter name and `vi` the value of the parameter (e.g: `my_program param_string=hello param_bool=true param_int=1 ...`)
  
