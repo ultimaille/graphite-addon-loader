@@ -11,6 +11,48 @@ local project_root = gom.get_environment_value("PROJECT_ROOT")
 -- Utils                     ---
 --------------------------------
 
+function to_table(it)
+   local t = {}
+   for x in it do 
+      table.insert(t, x)
+   end 
+   return t
+end
+
+local is_windows = package.config:sub(1,1) == '\\'
+print("Operating system is Windows: " .. tostring(is_windows))
+
+-- Get unix executable recursively in a directory using shell command line
+function get_unix_executables(path) 
+
+   local str, err, code = os.execute('for i in $(find ' .. path .. '); do if [ -x "$i" ] && [ -f "$i" ]; then echo "$i"; fi done > exe_list.out')
+
+   if str then
+
+      -- Get stdout result of cmd in redirected file
+      local f = io.open("exe_list.out", "r")
+      local data = f:read("*all")
+      f:close()
+      -- Cleanup file
+      FileSystem.delete_file("exe_list.out")
+
+      local files = to_table(string.split(data, '\n'))
+      local filtered_files = {}
+      for i, file in pairs(files) do 
+         local file_ext = FileSystem.extension(file)
+         if file_ext == "exe" or file_ext == "" then 
+            table.insert(filtered_files, file)
+         end
+      end
+      return filtered_files
+
+   elseif code == 1 then
+       return false
+   else
+       error("Error checking file permissions: " .. err)
+   end
+end
+
 -- Recursively search in directory files that match with the pattern 
 function search(dir, pattern)
    local files = {}
@@ -29,14 +71,6 @@ function search(dir, pattern)
    end
 
    return files
-end
-
-function to_table(it)
-   local t = {}
-   for x in it do 
-      table.insert(t, x)
-   end 
-   return t
 end
 
 -- Remove some characters that graphite doesn't support
@@ -141,7 +175,6 @@ function parameters_from_lines(lines)
             t[kv[1]] = kv[2]
          end
          
-         -- local p = parameters_from_chunks(t)
          table.insert(parameters, t)
          
       end 
@@ -246,7 +279,10 @@ function format_args(input_path, output_model_path, params, args)
 end
 
 function load_outputs(sandbox_dir)
-   -- Load outputs
+   -- TODO load lua file eventually
+   -- TODO load a file to do some action (add or replace to scene graph for example)
+
+   -- Load model outputs
    local obj_models = search(sandbox_dir, ".*%.obj")
    local geogram_models = search(sandbox_dir, ".*%.geogram")
    local mesh_models = search(sandbox_dir, ".*%.mesh")
@@ -258,6 +294,7 @@ function load_outputs(sandbox_dir)
 
    for _, model in pairs(models) do 
       print('Load: '..model)
+      -- scene_graph.delete_current_object()
       scene_graph.load_object(model)
    end
    
@@ -375,7 +412,7 @@ t_attr_reverse_map['OGF::Numeric::float64'] = 'double'
 t_attr_reverse_map['OGF::Numeric::int32'] = 'int'
 t_attr_reverse_map['OGF::Numeric::uint32'] = 'uint'
 t_attr_reverse_map['OGF::Numeric::uint8'] = 'bool'
--- Note: for facet corners, type are returned by graphite in normal form 'int', 'double' instead of 'OGF::Numeric::int32', 'OGF::Numeric::float64'
+-- Note: for facet corners, type are returned by graphite in regular form 'int', 'double' instead of 'OGF::Numeric::int32', 'OGF::Numeric::float64'
 -- I don't know why this is different between facet_corners attributes and other attributes, should ask to Bruno L.
 -- That's why I added this mapping below
 t_attr_reverse_map['double'] = 'double'
@@ -384,6 +421,9 @@ t_attr_reverse_map['uint'] = 'uint'
 t_attr_reverse_map['bool'] = 'bool'
 
 function draw_addon_menu(addon)
+
+   local menu_path = string.sub(FileSystem.dir_name(addon.path), #add_ons_directory + 1)
+
 
    -- Choose the menu to add the add-on
    -- If add-on expect a mesh as input it goes to MeshGrob menu, else to SceneGraph menu
@@ -454,15 +494,14 @@ function draw_addon_menu(addon)
 
    end 
    
-
-   m.create_custom_attribute('menu','/Externals')
+   m.create_custom_attribute('menu','/Add-ons' .. menu_path)
 
    return m
    
 end
 
 function draw_addons_menus(addons)
-   for _, addon in pairs(addons) do 
+   for _, addon in ipairs(addons) do 
       draw_addon_menu(addon)
    end
 end
@@ -520,8 +559,13 @@ print("addons directory: " .. add_ons_directory)
 
 
 function search_addons(directory)
-   -- return search(directory, ".*_addon[%.exe]?$")
-   return search(directory, ".*_addon.*")
+   local exe_files = search(directory, ".*%.exe")
+   local addon_files = search(directory, ".*%.addon")
+   local addons = concat_table(exe_files, addon_files)
+   -- Sort by alphabetical order
+   table.sort(addons, function(a, b) return FileSystem.base_name(a, true) < FileSystem.base_name(b, true) end)
+   
+   return addons
 end
 
 function search_params_files(directory)
@@ -530,6 +574,19 @@ end
 
 function search_help_files(directory)
    return search(directory, ".*%.help")
+end
+
+-- Detect if the data is formatted as param file data
+function is_param_file_data(data)
+   local lines = io.lines(param_file)
+
+   for line in lines do 
+      if string.starts_with(line, "name=") then 
+         return true
+      end
+   end
+
+   return false 
 end
 
 function scan_directory(directory)
@@ -624,8 +681,12 @@ function load_addons(directory)
       -- local help = string.join(lines, '\n')
 
       -- Keep plugin object in a associative map
-      addons[addon.name] = addon
+      table.insert(addons, addon)
+      -- addons[addon.name] = addon
    end
+
+   -- Sort alphabetically
+   table.sort(addons, function(a, b) return a.name < b.name end)
 
    return addons
 end
@@ -636,24 +697,25 @@ scene_graph.register_grob_commands(gom.meta_types.OGF.SceneGraph, mclass_scene_g
 -- Add menus to manage external plugins
 
 -- Add plugin menu
-local m_add_plugin = mclass_scene_graph_command.add_slot("Parameters", function(args) 
+local m_add_plugin = mclass_scene_graph_command.add_slot("Choose_add_ons_directory", function(args) 
 
    save_addon_directory(args.add_ons_directory)
    sync()
+   main.stop()
    
 end)
 
 
 -- Add menu to add addons directory
 m_add_plugin.add_arg("add_ons_directory", gom.meta_types.OGF.FileName, add_ons_directory)
-m_add_plugin.create_custom_attribute('menu','/Externals/Manage add ons')
+m_add_plugin.create_custom_attribute('menu','/Add-ons/Manage add ons')
 
 -- Add menu to sync addons
 m_clean_plugin = mclass_scene_graph_command.add_slot("Syncronize_and_Quit", function() 
    sync() 
    main.stop()
 end)
-m_clean_plugin.create_custom_attribute('menu','/Externals/Manage add ons')
+m_clean_plugin.create_custom_attribute('menu','/Add-ons/Manage add ons')
 
 -- Load addons
 local addons = load_addons(add_ons_directory)
