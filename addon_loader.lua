@@ -340,8 +340,8 @@ function exec_addon(addon)
       -- Create a sandbox
       -- Get document root
       -- TODO replace by tmp dir
-      local project_root = FileSystem.documents_directory()
-      local sandbox_dir = project_root .. "/" .. "sandbox_" .. os.clock()
+      -- local project_root = FileSystem.documents_directory()
+      local sandbox_dir = working_dir .. "/" .. "sandbox_" .. os.clock()
       FileSystem.create_directory(sandbox_dir)
       print("Sandbox dir created: "..sandbox_dir)
 
@@ -535,6 +535,8 @@ scene_graph.register_grob_commands(gom.meta_types.OGF.MeshGrob, mclass_mesh_grob
 
 local addon_loader_file = project_root .. "/addon_loader.txt"
 
+-- local working_dir = FileSystem.documents_directory()
+
 function load_addon_directory()
 
    if not FileSystem.is_file(addon_loader_file) then 
@@ -544,17 +546,26 @@ function load_addon_directory()
    local f = io.open(addon_loader_file, "r")
    local data = f:read("*all")
    f:close()
-   return data
+
+   -- Split by ';', add_ons_dir is addon directory, w_dir is working directory
+   local add_ons_dir, w_dir = table.unpack(to_table(string.split(data, ';')))
+
+   if not w_dir then 
+      w_dir = FileSystem.documents_directory()
+   end
+
+   return add_ons_dir, w_dir
 end
 
-function save_addon_directory(directory)
+function save_addon_directory(directory, w_dir)
    add_ons_directory = directory
+   working_dir = w_dir
    local f = io.open(addon_loader_file, "w")
-   f:write(directory)
+   f:write(directory .. ";" .. w_dir)
    f:close()
 end
 
-add_ons_directory = load_addon_directory()
+add_ons_directory, working_dir = load_addon_directory()
 print("addons directory: " .. add_ons_directory)
 
 
@@ -699,7 +710,7 @@ scene_graph.register_grob_commands(gom.meta_types.OGF.SceneGraph, mclass_scene_g
 -- Add plugin menu
 local m_add_plugin = mclass_scene_graph_command.add_slot("Choose_add_ons_directory", function(args) 
 
-   save_addon_directory(args.add_ons_directory)
+   save_addon_directory(args.add_ons_directory, args.working_dir)
    sync()
    main.stop()
    
@@ -715,6 +726,11 @@ m_clean_plugin = mclass_scene_graph_command.add_slot("Syncronize_and_Quit", func
    sync() 
    main.stop()
 end)
+
+-- Add menu to set working directory
+m_add_plugin.add_arg("working_dir", gom.meta_types.OGF.FileName, working_dir)
+
+
 m_clean_plugin.create_custom_attribute('menu','/Add-ons/Manage add ons')
 
 -- Load addons
